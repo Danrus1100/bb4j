@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "format_version": "5.0",
+    "model_format": "free",
+    "box_uv": false
+  },
+  "resolution": {
+    "width": 64,
+    "height": 64
+  },
+  "elements": [
+    {
+      "name": "cube",
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "autouv": 0,
+      "color": 1,
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": 0},
+        "south": {"uv": [0, 0, 16, 16], "texture": 0},
+        "east": {"uv": [0, 0, 16, 16], "texture": 0},
+        "west": {"uv": [0, 0, 16, 16], "texture": 0},
+        "up": {"uv": [0, 0, 16, 16], "texture": 0},
+        "down": {"uv": [0, 0, 16, 16], "texture": 0}
+      }
+    }
+  ],
+  "outliner": [
+    {
+      "name": "root",
+      "type": "group",
+      "children": [
+        {
+          "name": "cube",
+          "type": "element",
+          "uuid": "d41d8cd9-8f00-b204-e980-0998ecf8427e"
+        }
+      ]
+    }
+  ],
+  "animations": [
+    {
+      "name": "test_animation",
+      "loop": true,
+      "override": true,
+      "length": 20,
+      "animators": {
+        "d41d8cd9-8f00-b204-e980-0998ecf8427e": {
+          "position": [
+            {
+              "time": 0,
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "time": 10,
+              "x": 0,
+              "y": 16,
+              "z": 0
+            },
+            {
+              "time": 20,
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          ],
+          "rotation": [
+            {
+              "time": 0,
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "time": 10,
+              "x": 0,
+              "y": 45,
+              "z": 0
+            }
+          ],
+          "scale": [
+            {
+              "time": 0,
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            {
+              "time": 10,
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
