@@ -5,6 +5,7 @@ public class Interpolation {
     public static final String CATMULLROM = "catmullrom";
     public static final String BEZIER = "bezier";
     public static final String STEPPED = "stepped";
+    public static final String STEP = "step";
 
     private final String value;
 
@@ -29,7 +30,7 @@ public class Interpolation {
     }
 
     public boolean isStepped() {
-        return STEPPED.equals(value);
+        return STEPPED.equals(value) || STEP.equals(value);
     }
 
     @Override

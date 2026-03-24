@@ -363,6 +363,14 @@ public class BbModelReader {
         if (json.has("to") && json.get("to").isJsonArray()) {
             elem.setTo(parseDoubleArray(json.getAsJsonArray("to")));
         }
+
+        if (json.has("origin") && json.get("origin").isJsonArray()) {
+            elem.setOrigin(parseDoubleArray(json.getAsJsonArray("origin")));
+        }
+
+        if (json.has("inflate") && json.get("inflate").isJsonPrimitive()) {
+            elem.setInflate(json.get("inflate").getAsDouble());
+        }
         
         if (json.has("rotation") && json.get("rotation").isJsonArray()) {
             elem.setRotation(parseIntArray(json.getAsJsonArray("rotation")));
@@ -391,8 +399,77 @@ public class BbModelReader {
         if (json.has("faces") && json.get("faces").isJsonObject()) {
             elem.setFaces(parseFaces(json.getAsJsonObject("faces")));
         }
+
+        if (elem instanceof MeshElement meshElement) {
+            if (json.has("vertices") && json.get("vertices").isJsonObject()) {
+                meshElement.setVertices(parseMeshVertices(json.getAsJsonObject("vertices")));
+            }
+            if (json.has("faces") && json.get("faces").isJsonObject()) {
+                meshElement.setMeshFaces(parseMeshFaces(json.getAsJsonObject("faces")));
+            }
+        }
         
         return elem;
+    }
+
+    private static Map<String, Double[]> parseMeshVertices(JsonObject json) {
+        Map<String, Double[]> result = new HashMap<>();
+        for (String key : json.keySet()) {
+            JsonElement vertex = json.get(key);
+            if (vertex.isJsonArray()) {
+                Double[] coords = parseDoubleArray(vertex.getAsJsonArray());
+                if (coords != null && coords.length >= 3) {
+                    result.put(key, new Double[]{coords[0], coords[1], coords[2]});
+                }
+            }
+        }
+        return result;
+    }
+
+    private static List<MeshElement.MeshFaceData> parseMeshFaces(JsonObject json) {
+        List<MeshElement.MeshFaceData> faces = new ArrayList<>();
+
+        for (String key : json.keySet()) {
+            JsonObject faceJson = json.getAsJsonObject(key);
+            MeshElement.MeshFaceData face = new MeshElement.MeshFaceData();
+            face.setId(key);
+
+            if (faceJson.has("vertices") && faceJson.get("vertices").isJsonArray()) {
+                List<String> vertexKeys = new ArrayList<>();
+                for (JsonElement vertexRef : faceJson.getAsJsonArray("vertices")) {
+                    if (vertexRef.isJsonPrimitive()) {
+                        vertexKeys.add(vertexRef.getAsString());
+                    }
+                }
+                face.setVertices(vertexKeys);
+            }
+
+            if (faceJson.has("uv") && faceJson.get("uv").isJsonObject()) {
+                Map<String, Double[]> uvByVertex = new HashMap<>();
+                JsonObject uvJson = faceJson.getAsJsonObject("uv");
+                for (String vertexKey : uvJson.keySet()) {
+                    JsonElement uv = uvJson.get(vertexKey);
+                    if (uv.isJsonArray()) {
+                        Double[] coords = parseDoubleArray(uv.getAsJsonArray());
+                        if (coords != null && coords.length >= 2) {
+                            uvByVertex.put(vertexKey, new Double[]{coords[0], coords[1]});
+                        }
+                    }
+                }
+                face.setUvByVertex(uvByVertex);
+            }
+
+            if (faceJson.has("texture")) {
+                JsonElement texture = faceJson.get("texture");
+                if (texture.isJsonPrimitive()) {
+                    face.setTexture(texture.getAsString());
+                }
+            }
+
+            faces.add(face);
+        }
+
+        return faces;
     }
 
     private static Map<String, Face> parseFaces(JsonObject json) {
@@ -477,6 +554,10 @@ public class BbModelReader {
                 group.setRotation(parseIntArray(json.getAsJsonArray("rotation")));
             }
             
+            if (json.has("origin") && json.get("origin").isJsonArray()) {
+                group.setOrigin(parseDoubleArray(json.getAsJsonArray("origin")));
+            }
+            
             if (json.has("mirror")) {
                 group.setMirror(json.get("mirror").getAsBoolean());
             }
@@ -537,6 +618,10 @@ public class BbModelReader {
                 group.setRotation(parseIntArray(json.getAsJsonArray("rotation")));
             }
             
+            if (json.has("origin") && json.get("origin").isJsonArray()) {
+                group.setOrigin(parseDoubleArray(json.getAsJsonArray("origin")));
+            }
+            
             if (json.has("translation") && json.get("translation").isJsonArray()) {
                 group.setTranslation(parseDoubleArray(json.getAsJsonArray("translation")));
             }
@@ -592,6 +677,13 @@ public class BbModelReader {
                 JsonElement loopEl = json.get("loop");
                 if (loopEl.isJsonPrimitive() && loopEl.getAsJsonPrimitive().isBoolean()) {
                     animation.setLoop(loopEl.getAsBoolean() ? 1.0 : 0.0);
+                } else if (loopEl.isJsonPrimitive() && loopEl.getAsJsonPrimitive().isString()) {
+                    String loop = loopEl.getAsString();
+                    if ("loop".equalsIgnoreCase(loop) || "true".equalsIgnoreCase(loop)) {
+                        animation.setLoop(1.0);
+                    } else {
+                        animation.setLoop(0.0);
+                    }
                 } else {
                     animation.setLoop(loopEl.getAsDouble());
                 }
@@ -685,6 +777,14 @@ public class BbModelReader {
             
             if (json.has("bezier_right_value") && json.get("bezier_right_value").isJsonArray()) {
                 keyframe.setBezierRightValue(parseDoubleArray(json.getAsJsonArray("bezier_right_value")));
+            }
+            
+            if (json.has("bezier_left_time") && json.get("bezier_left_time").isJsonArray()) {
+                keyframe.setBezierLeftTime(parseDoubleArray(json.getAsJsonArray("bezier_left_time")));
+            }
+            
+            if (json.has("bezier_right_time") && json.get("bezier_right_time").isJsonArray()) {
+                keyframe.setBezierRightTime(parseDoubleArray(json.getAsJsonArray("bezier_right_time")));
             }
             
             keyframes.add(keyframe);

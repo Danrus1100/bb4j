@@ -1,9 +1,7 @@
 plugins {
     id("java")
+    id("maven-publish")
 }
-
-group = "com.danrus"
-version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -11,12 +9,31 @@ repositories {
 
 dependencies {
     implementation("com.google.code.gson:gson:2.13.2")
-
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.test {
-    useJUnitPlatform()
+publishing {
+
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+
+            groupId = "com.danrus"
+            artifactId = "bb4j"
+            version = "1.1-SNAPSHOT"
+        }
+    }
+
+    repositories {
+        maven {
+            name = "Shlakoblock"
+            url = uri("https://maven.shlakoblock.com/releases")
+
+            credentials {
+                username = project.findProperty("shlakoblock-maven-username")?.toString()
+                password = project.findProperty("shlakoblock-maven-password")?.toString()
+            }
+        }
+
+        mavenLocal()
+    }
 }

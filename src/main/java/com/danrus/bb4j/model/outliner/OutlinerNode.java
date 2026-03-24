@@ -13,6 +13,9 @@ public class OutlinerNode {
     private String name;
     private Integer[] rotation;
     private Double[] translation;
+    private Double[] origin;
+    public Double[] getOrigin() { return origin; }
+    public void setOrigin(Double[] origin) { this.origin = origin; }
     private Double[] scale;
     private Boolean export;
     private List<OutlinerNode> children;

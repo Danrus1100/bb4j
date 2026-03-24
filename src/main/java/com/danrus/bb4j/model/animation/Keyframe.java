@@ -15,6 +15,8 @@ public class Keyframe {
     private List<DataPoint> dataPoints;
     private Double[] bezierLeftValue;
     private Double[] bezierRightValue;
+    private Double[] bezierLeftTime;
+    private Double[] bezierRightTime;
     private Map<String, Object> extra;
 
     public Keyframe() {}
@@ -76,6 +78,22 @@ public class Keyframe {
         this.bezierRightValue = bezierRightValue;
     }
 
+    public Double[] getBezierLeftTime() {
+        return bezierLeftTime;
+    }
+
+    public void setBezierLeftTime(Double[] bezierLeftTime) {
+        this.bezierLeftTime = bezierLeftTime;
+    }
+
+    public Double[] getBezierRightTime() {
+        return bezierRightTime;
+    }
+
+    public void setBezierRightTime(Double[] bezierRightTime) {
+        this.bezierRightTime = bezierRightTime;
+    }
+
     public Map<String, Object> getExtra() {
         return extra;
     }
@@ -97,6 +115,12 @@ public class Keyframe {
         }
         if (this.bezierRightValue != null) {
             copy.bezierRightValue = this.bezierRightValue.clone();
+        }
+        if (this.bezierLeftTime != null) {
+            copy.bezierLeftTime = this.bezierLeftTime.clone();
+        }
+        if (this.bezierRightTime != null) {
+            copy.bezierRightTime = this.bezierRightTime.clone();
         }
         return copy;
     }

@@ -12,6 +12,8 @@ public class Element {
     private String name;
     private Double[] from;
     private Double[] to;
+    private Double[] origin;
+    private Double inflate;
     private Integer[] rotation;
     private Double[] translation;
     private Double[] scale;
@@ -70,6 +72,22 @@ public class Element {
 
     public void setTo(Double[] to) {
         this.to = to;
+    }
+
+    public Double[] getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(Double[] origin) {
+        this.origin = origin;
+    }
+
+    public Double getInflate() {
+        return inflate;
+    }
+
+    public void setInflate(Double inflate) {
+        this.inflate = inflate;
     }
 
     public Integer[] getRotation() {

@@ -225,8 +225,14 @@ public class BbModelDocument {
     }
 
     public static class Group {
+        private Double[] origin;
+        public Double[] getOrigin() { return origin; }
+        public void setOrigin(Double[] origin) { this.origin = origin; }
         private String uuid;
         private String name;
+        
+        
+        
         private Integer[] rotation;
         private Boolean mirror;
         private Integer[] stretch;
@@ -262,6 +268,10 @@ public class BbModelDocument {
         public Integer[] getRotation() {
             return rotation;
         }
+
+        
+        
+        
 
         public void setRotation(Integer[] rotation) {
             this.rotation = rotation;
@@ -311,6 +321,9 @@ public class BbModelDocument {
     public static class AnimationController {
         private String uuid;
         private String name;
+        
+        
+        
         private Map<String, Object> states;
         private Map<String, Object> transitions;
         private Map<String, Object> extra;
@@ -363,6 +376,9 @@ public class BbModelDocument {
     public static class ReferenceImage {
         private String uuid;
         private String name;
+        
+        
+        
         private Double[] position;
         private Double[] size;
         private String source;
@@ -442,6 +458,9 @@ public class BbModelDocument {
     public static class Collection {
         private String uuid;
         private String name;
+        
+        
+        
         private Integer order;
         private String color;
         private Boolean locked;

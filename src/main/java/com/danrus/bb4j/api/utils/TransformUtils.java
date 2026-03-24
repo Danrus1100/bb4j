@@ -44,12 +44,21 @@ public class TransformUtils {
     
     public Transform getTransformAtTime(String targetUuid, Animation animation, double time) {
         if (animation == null || animation.getAnimators() == null) {
-            return getStaticTransform(targetUuid);
+            return new Transform();
+        }
+
+        Double length = animation.getLength();
+        if (length != null && length > 0) {
+            if (animation.getLoop() != null && animation.getLoop() > 0) {
+                time = time % length;
+            } else {
+                time = Math.min(time, length);
+            }
         }
         
         Animator animator = animation.getAnimators().get(targetUuid);
         if (animator == null || animator.getKeyframes() == null) {
-            return getStaticTransform(targetUuid);
+            return new Transform();
         }
         
         Transform transform = new Transform();
@@ -94,7 +103,7 @@ public class TransformUtils {
             }
         }
         
-        return transform.hasAnyValue() ? transform : getStaticTransform(targetUuid);
+        return transform;
     }
     
     private Keyframe[] interpolateKeyframes(List<Keyframe> keyframes, double time) {
@@ -102,11 +111,14 @@ public class TransformUtils {
         
         Keyframe before = null;
         Keyframe after = null;
+        int beforeIndex = -1;
         
-        for (Keyframe kf : keyframes) {
+        for (int i = 0; i < keyframes.size(); i++) {
+            Keyframe kf = keyframes.get(i);
             double kfTime = kf.getTime() != null ? kf.getTime() : 0;
             if (kfTime <= time) {
                 before = kf;
+                beforeIndex = i;
             } else {
                 after = kf;
                 break;
@@ -122,41 +134,188 @@ public class TransformUtils {
         
         Interpolation interp = before.getInterpolation();
         
-        if (interp != null && interp.isBezier()) {
-            t = applyBezier(t, before, after);
-        } else if (interp != null && interp.isStepped()) {
+        if (interp != null && interp.isStepped()) {
             t = 0;
+            return interpolateKeyframeData(before, after, t);
+        } else if (interp != null && (interp.isCatmullrom() || interp.isBezier())) {
+            Keyframe beforePlus = beforeIndex > 0 ? keyframes.get(beforeIndex - 1) : null;
+            Keyframe afterPlus = (beforeIndex + 2) < keyframes.size() ? keyframes.get(beforeIndex + 2) : null;
+            return interpolateKeyframeDataAdvanced(beforePlus, before, after, afterPlus, t, interp.getValue());
         }
         
         return interpolateKeyframeData(before, after, t);
     }
     
-    private double applyBezier(double t, Keyframe before, Keyframe after) {
-        Double[] left = before.getBezierRightValue();
-        Double[] right = after.getBezierLeftValue();
+    private Keyframe[] interpolateKeyframeDataAdvanced(Keyframe beforePlus, Keyframe before, Keyframe after, Keyframe afterPlus, double alpha, String interpType) {
+        DataPoint dpBefore = before.getDataPoints() != null && !before.getDataPoints().isEmpty() ? before.getDataPoints().get(0) : null;
+        DataPoint dpAfter = after.getDataPoints() != null && !after.getDataPoints().isEmpty() ? after.getDataPoints().get(0) : null;
         
-        if (left == null || right == null || left.length < 2 || right.length < 2) {
-            return t;
+        if (dpBefore == null && dpAfter == null) return null;
+        
+        Keyframe result = new Keyframe();
+        double time = before.getTime() + (after.getTime() - before.getTime()) * alpha;
+        result.setTime(time);
+        result.setChannel(before.getChannel());
+        
+        DataPoint interpolated = new DataPoint();
+        boolean isCatmull = Interpolation.CATMULLROM.equals(interpType);
+        
+        if (dpBefore != null) {
+            if (dpBefore.getX() != null) {
+                Double val = isCatmull ? getCatmullromLerp(beforePlus, before, after, afterPlus, alpha, "x") 
+                                       : getBezierLerp(before, after, alpha, "x");
+                if (val != null) interpolated.setX(String.valueOf(val));
+            }
+            if (dpBefore.getY() != null) {
+                Double val = isCatmull ? getCatmullromLerp(beforePlus, before, after, afterPlus, alpha, "y") 
+                                       : getBezierLerp(before, after, alpha, "y");
+                if (val != null) interpolated.setY(String.valueOf(val));
+            }
+            if (dpBefore.getZ() != null) {
+                Double val = isCatmull ? getCatmullromLerp(beforePlus, before, after, afterPlus, alpha, "z") 
+                                       : getBezierLerp(before, after, alpha, "z");
+                if (val != null) interpolated.setZ(String.valueOf(val));
+            }
+            if (dpBefore.getW() != null) {
+                Double v1 = evaluateMolangOrNumber(dpBefore.getW());
+                Double v2 = dpAfter != null && dpAfter.getW() != null ? evaluateMolangOrNumber(dpAfter.getW()) : v1;
+                if (v1 != null && v2 != null) {
+                    interpolated.setW(String.valueOf(lerp(v1, v2, alpha)));
+                } else if (v1 != null) {
+                    interpolated.setW(String.valueOf(v1));
+                }
+            }
         }
         
-        double cp1x = left[0] / 100.0;
-        double cp1y = left[1] / 100.0;
-        double cp2x = 1.0 + right[0] / 100.0;
-        double cp2y = 1.0 + right[1] / 100.0;
-        
-        return cubicBezierY(t, cp1x, cp1y, cp2x, cp2y);
+        result.setDataPoints(List.of(interpolated));
+        return new Keyframe[]{result};
     }
     
-    private double cubicBezierY(double t, double x1, double y1, double x2, double y2) {
-        double cx = 3.0 * x1;
-        double bx = 3.0 * (x2 - x1) - cx;
-        double ax = 1.0 - cx - bx;
+    private Double getCatmullromLerp(Keyframe beforePlus, Keyframe before, Keyframe after, Keyframe afterPlus, double alpha, String axis) {
+        List<double[]> points = new ArrayList<>();
         
-        double cy = 3.0 * y1;
-        double by = 3.0 * (y2 - y1) - cy;
-        double ay = 1.0 - cy - by;
+        if (beforePlus != null) {
+            Double val = getAxisValue(beforePlus, axis);
+            if (val != null) points.add(new double[]{beforePlus.getTime(), val});
+        }
+        if (before != null) {
+            Double val = getAxisValue(before, axis);
+            if (val != null) points.add(new double[]{before.getTime(), val});
+        }
+        if (after != null) {
+            Double val = getAxisValue(after, axis);
+            if (val != null) points.add(new double[]{after.getTime(), val});
+        }
+        if (afterPlus != null) {
+            Double val = getAxisValue(afterPlus, axis);
+            if (val != null) points.add(new double[]{afterPlus.getTime(), val});
+        }
         
-        return ((ay * t + by) * t + cy) * t;
+        if (points.size() < 2) return getAxisValue(before, axis);
+        
+        double t = (alpha + (beforePlus != null ? 1 : 0)) / (points.size() - 1);
+        
+        int p = (int) (points.size() - 1) * (int) t;
+        int intPoint = (int) Math.floor(t * (points.size() - 1));
+        if (intPoint < 0) intPoint = 0;
+        if (intPoint > points.size() - 2) intPoint = points.size() - 2;
+        
+        double weight = (t * (points.size() - 1)) - intPoint;
+        
+        double[] p0 = points.get(intPoint == 0 ? intPoint : intPoint - 1);
+        double[] p1 = points.get(intPoint);
+        double[] p2 = points.get(intPoint > points.size() - 2 ? points.size() - 1 : intPoint + 1);
+        double[] p3 = points.get(intPoint > points.size() - 3 ? points.size() - 1 : intPoint + 2);
+        
+        return catmullRom(weight, p0[1], p1[1], p2[1], p3[1]);
+    }
+    
+    private double catmullRom(double weight, double p0, double p1, double p2, double p3) {
+        double weight2 = weight * weight;
+        double weight3 = weight2 * weight;
+        return 0.5 * (
+            (2 * p1) +
+            (-p0 + p2) * weight +
+            (2 * p0 - 5 * p1 + 4 * p2 - p3) * weight2 +
+            (-p0 + 3 * p1 - 3 * p2 + p3) * weight3
+        );
+    }
+    
+    private Double getBezierLerp(Keyframe before, Keyframe after, double alpha, String axis) {
+        int axisNum = axis.equals("x") ? 0 : axis.equals("y") ? 1 : 2;
+        Double valBefore = getAxisValue(before, axis);
+        Double valAfter = getAxisValue(after, axis);
+        
+        if (valBefore == null || valAfter == null) return valBefore;
+        
+        double timeGap = after.getTime() - before.getTime();
+        
+        Double[] rightTime = before.getBezierRightTime();
+        double timeHandleBefore = rightTime != null && rightTime.length > axisNum && rightTime[axisNum] != null ? rightTime[axisNum] : 0;
+        timeHandleBefore = Math.max(0, Math.min(timeGap, timeHandleBefore));
+        
+        Double[] leftTime = after.getBezierLeftTime();
+        double timeHandleAfter = leftTime != null && leftTime.length > axisNum && leftTime[axisNum] != null ? leftTime[axisNum] : 0;
+        timeHandleAfter = Math.max(-timeGap, Math.min(0, timeHandleAfter));
+        
+        Double[] rightVal = before.getBezierRightValue();
+        double valHandleBefore = rightVal != null && rightVal.length > axisNum && rightVal[axisNum] != null ? rightVal[axisNum] : 0;
+        
+        Double[] leftVal = after.getBezierLeftValue();
+        double valHandleAfter = leftVal != null && leftVal.length > axisNum && leftVal[axisNum] != null ? leftVal[axisNum] : 0;
+        
+        double p0x = before.getTime();
+        double p0y = valBefore;
+        
+        double p1x = before.getTime() + timeHandleBefore;
+        double p1y = valBefore + valHandleBefore;
+        
+        double p2x = after.getTime() + timeHandleAfter;
+        double p2y = valAfter + valHandleAfter;
+        
+        double p3x = after.getTime();
+        double p3y = valAfter;
+        
+        double targetTime = before.getTime() + (after.getTime() - before.getTime()) * alpha;
+        
+        // Approximate bezier curve using steps
+        int steps = 50;
+        double bestT = alpha;
+        double minDiff = Double.MAX_VALUE;
+        
+        for (int i = 0; i <= steps; i++) {
+            double currT = (double) i / steps;
+            double currX = cubicBezier(currT, p0x, p1x, p2x, p3x);
+            double diff = Math.abs(currX - targetTime);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestT = currT;
+            }
+        }
+        
+        return cubicBezier(bestT, p0y, p1y, p2y, p3y);
+    }
+    
+    private double cubicBezier(double t, double p0, double p1, double p2, double p3) {
+        double u = 1 - t;
+        double tt = t * t;
+        double uu = u * u;
+        double uuu = uu * u;
+        double ttt = tt * t;
+        
+        double p = uuu * p0;
+        p += 3 * uu * t * p1;
+        p += 3 * u * tt * p2;
+        p += ttt * p3;
+        
+        return p;
+    }
+    
+    private Double getAxisValue(Keyframe kf, String axis) {
+        if (kf == null || kf.getDataPoints() == null || kf.getDataPoints().isEmpty()) return null;
+        DataPoint dp = kf.getDataPoints().get(0);
+        String valStr = axis.equals("x") ? dp.getX() : axis.equals("y") ? dp.getY() : dp.getZ();
+        return evaluateMolangOrNumber(valStr);
     }
     
     private Keyframe[] interpolateKeyframeData(Keyframe before, Keyframe after, double t) {
@@ -173,12 +332,14 @@ public class TransformUtils {
         
         DataPoint interpolated = new DataPoint();
         
+        boolean isRotation = "rotation".equals(before.getChannel());
+
         if (dpBefore != null) {
             if (dpBefore.getX() != null) {
                 Double v1 = evaluateMolangOrNumber(dpBefore.getX());
                 Double v2 = dpAfter != null && dpAfter.getX() != null ? evaluateMolangOrNumber(dpAfter.getX()) : v1;
                 if (v1 != null && v2 != null) {
-                    interpolated.setX(String.valueOf(lerp(v1, v2, t)));
+                    interpolated.setX(String.valueOf(isRotation ? lerpAngle(v1, v2, t) : lerp(v1, v2, t)));
                 } else if (v1 != null) {
                     interpolated.setX(String.valueOf(v1));
                 }
@@ -187,7 +348,7 @@ public class TransformUtils {
                 Double v1 = evaluateMolangOrNumber(dpBefore.getY());
                 Double v2 = dpAfter != null && dpAfter.getY() != null ? evaluateMolangOrNumber(dpAfter.getY()) : v1;
                 if (v1 != null && v2 != null) {
-                    interpolated.setY(String.valueOf(lerpAngle(v1, v2, t)));
+                    interpolated.setY(String.valueOf(isRotation ? lerpAngle(v1, v2, t) : lerp(v1, v2, t)));
                 } else if (v1 != null) {
                     interpolated.setY(String.valueOf(v1));
                 }
@@ -196,7 +357,7 @@ public class TransformUtils {
                 Double v1 = evaluateMolangOrNumber(dpBefore.getZ());
                 Double v2 = dpAfter != null && dpAfter.getZ() != null ? evaluateMolangOrNumber(dpAfter.getZ()) : v1;
                 if (v1 != null && v2 != null) {
-                    interpolated.setZ(String.valueOf(lerpAngle(v1, v2, t)));
+                    interpolated.setZ(String.valueOf(isRotation ? lerpAngle(v1, v2, t) : lerp(v1, v2, t)));
                 } else if (v1 != null) {
                     interpolated.setZ(String.valueOf(v1));
                 }
@@ -282,6 +443,78 @@ public class TransformUtils {
         return transform;
     }
     
+    public Map<String, Transform> getBlendedTransforms(List<AnimationBlendState> states) {
+        Map<String, Transform> result = new HashMap<>();
+        if (states == null || states.isEmpty()) return result;
+        
+        Set<String> allUuids = new HashSet<>();
+        for (AnimationBlendState state : states) {
+            if (state.getWeight() <= 0) continue;
+            Animation animation = animationUtils.getAnimationByName(state.getAnimationName());
+            if (animation != null && animation.getAnimators() != null) {
+                allUuids.addAll(animation.getAnimators().keySet());
+            }
+        }
+        
+        for (String uuid : allUuids) {
+            double x = 0, y = 0, z = 0;
+            double rotX = 0, rotY = 0, rotZ = 0;
+            double scaleX = 1, scaleY = 1, scaleZ = 1;
+            double totalWeight = 0;
+            
+            for (AnimationBlendState state : states) {
+                if (state.getWeight() <= 0) continue;
+                Animation animation = animationUtils.getAnimationByName(state.getAnimationName());
+                if (animation == null || animation.getAnimators() == null || !animation.getAnimators().containsKey(uuid)) continue;
+                
+                Transform t = getTransformAtTime(uuid, animation, state.getTime());
+                if (t == null) continue;
+                
+                double w = state.getWeight();
+                if (totalWeight == 0) {
+                    x = t.getX(); y = t.getY(); z = t.getZ();
+                    rotX = t.getRotX(); rotY = t.getRotY(); rotZ = t.getRotZ();
+                    scaleX = t.getScaleX(); scaleY = t.getScaleY(); scaleZ = t.getScaleZ();
+                    totalWeight = w;
+                } else {
+                    double factor = w / (totalWeight + w);
+                    x = lerp(x, t.getX(), factor);
+                    y = lerp(y, t.getY(), factor);
+                    z = lerp(z, t.getZ(), factor);
+                    rotX = lerpAngle(rotX, t.getRotX(), factor);
+                    rotY = lerpAngle(rotY, t.getRotY(), factor);
+                    rotZ = lerpAngle(rotZ, t.getRotZ(), factor);
+                    scaleX = lerp(scaleX, t.getScaleX(), factor);
+                    scaleY = lerp(scaleY, t.getScaleY(), factor);
+                    scaleZ = lerp(scaleZ, t.getScaleZ(), factor);
+                    totalWeight += w;
+                }
+            }
+            
+            if (totalWeight > 0) {
+                if (totalWeight < 1.0) {
+                    double factor = 1.0 - totalWeight;
+                    x = lerp(x, 0.0, factor);
+                    y = lerp(y, 0.0, factor);
+                    z = lerp(z, 0.0, factor);
+                    rotX = lerpAngle(rotX, 0.0, factor);
+                    rotY = lerpAngle(rotY, 0.0, factor);
+                    rotZ = lerpAngle(rotZ, 0.0, factor);
+                    scaleX = lerp(scaleX, 1.0, factor);
+                    scaleY = lerp(scaleY, 1.0, factor);
+                    scaleZ = lerp(scaleZ, 1.0, factor);
+                }
+                Transform blended = new Transform();
+                blended.setX(x); blended.setY(y); blended.setZ(z);
+                blended.setRotX(rotX); blended.setRotY(rotY); blended.setRotZ(rotZ);
+                blended.setScaleX(scaleX); blended.setScaleY(scaleY); blended.setScaleZ(scaleZ);
+                result.put(uuid, blended);
+            }
+        }
+        
+        return result;
+    }
+
     public Map<String, Transform> getAllTransformsAtTime(Animation animation, double time) {
         Map<String, Transform> result = new HashMap<>();
         

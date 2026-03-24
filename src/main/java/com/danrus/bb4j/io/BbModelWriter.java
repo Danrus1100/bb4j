@@ -290,6 +290,14 @@ public class BbModelWriter {
             if (element.getTo() != null) {
                 json.add("to", serializeDoubleArray(element.getTo()));
             }
+
+            if (element.getOrigin() != null) {
+                json.add("origin", serializeDoubleArray(element.getOrigin()));
+            }
+
+            if (element.getInflate() != null) {
+                json.addProperty("inflate", element.getInflate());
+            }
             
             if (element.getRotation() != null) {
                 json.add("rotation", serializeIntArray(element.getRotation()));
@@ -569,6 +577,14 @@ public class BbModelWriter {
             
             if (keyframe.getBezierRightValue() != null) {
                 json.add("bezier_right_value", serializeDoubleArray(keyframe.getBezierRightValue()));
+            }
+            
+            if (keyframe.getBezierLeftTime() != null) {
+                json.add("bezier_left_time", serializeDoubleArray(keyframe.getBezierLeftTime()));
+            }
+            
+            if (keyframe.getBezierRightTime() != null) {
+                json.add("bezier_right_time", serializeDoubleArray(keyframe.getBezierRightTime()));
             }
             
             array.add(json);
