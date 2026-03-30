@@ -13,6 +13,7 @@ public class Face {
     private String name;
     private Uv uv;
     private String texture;
+    private Integer rotation;
     private Boolean cullface;
     private Integer tintindex;
     private Boolean mirrorUv;
@@ -56,6 +57,14 @@ public class Face {
         this.texture = texture;
     }
 
+    public Integer getRotation() {
+        return rotation;
+    }
+
+    public void setRotation(Integer rotation) {
+        this.rotation = rotation;
+    }
+
     public Boolean getCullface() {
         return cullface;
     }
@@ -92,6 +101,7 @@ public class Face {
         Face copy = new Face(name);
         copy.uv = this.uv.copy();
         copy.texture = this.texture;
+        copy.rotation = this.rotation;
         copy.cullface = this.cullface;
         copy.tintindex = this.tintindex;
         copy.mirrorUv = this.mirrorUv;

@@ -59,7 +59,7 @@ public class RenderUtils {
         }
         
         Map<String, Transform> transforms = transformUtils.getBlendedTransforms(states);
-        processOutlinerNode(document.getOutliner(), transforms, new double[]{0, 0, 0}, new double[]{0, 0, 0}, new double[]{1, 1, 1}, null, meshes);
+        processOutlinerNode(document.getOutliner(), transforms, new ArrayList<>(), new double[]{0, 0, 0}, meshes, new ArrayList<>());
         return meshes;
     }
 
@@ -75,33 +75,40 @@ public class RenderUtils {
             transforms = transformUtils.getAllTransformsAtTime(animation, time);
         }
         
-        processOutlinerNode(document.getOutliner(), transforms, new double[]{0, 0, 0}, new double[]{0, 0, 0}, new double[]{1, 1, 1}, null, meshes);
+        processOutlinerNode(document.getOutliner(), transforms, new ArrayList<>(), new double[]{0, 0, 0}, meshes, new ArrayList<>());
         
         return meshes;
     }
     
 
-    private void processOutlinerNode(List<OutlinerNode> nodes, Map<String, Transform> transforms, double[] parentPos, double[] parentRot, double[] parentScale, double[] parentOrigin, List<RenderableMesh> meshes) {
+    private void processOutlinerNode(List<OutlinerNode> nodes, Map<String, Transform> transforms, List<RenderableMesh.TransformStep> parentSteps, double[] parentOrigin, List<RenderableMesh> meshes, List<String> parentUuids) {
         if (nodes == null) return;
         
         for (OutlinerNode node : nodes) {
-            double[] pos = parentPos.clone();
-            double[] rot = parentRot.clone();
-            double[] scale = parentScale.clone();
+            List<RenderableMesh.TransformStep> currentSteps = new ArrayList<>(parentSteps);
+            List<String> currentUuids = new ArrayList<>(parentUuids);
+            
+            if (node.getUuid() != null) {
+                currentUuids.add(node.getUuid());
+            }
+
+            double[] animPos = new double[]{0,0,0};
+            double[] animRot = new double[]{0,0,0};
+            double[] animScale = new double[]{1,1,1};
             
             Transform transform = transforms.get(node.getUuid());
             if (transform != null) {
-                if (transform.getX() != null) pos[0] += transform.getX();
-                if (transform.getY() != null) pos[1] += transform.getY();
-                if (transform.getZ() != null) pos[2] += transform.getZ();
+                animPos[0] = transform.getX();
+                animPos[1] = transform.getY();
+                animPos[2] = transform.getZ();
                 
-                if (transform.getRotX() != null) rot[0] += transform.getRotX();
-                if (transform.getRotY() != null) rot[1] += transform.getRotY();
-                if (transform.getRotZ() != null) rot[2] += transform.getRotZ();
+                animRot[0] = transform.getRotX();
+                animRot[1] = transform.getRotY();
+                animRot[2] = transform.getRotZ();
 
-                if (transform.getScaleX() != null) scale[0] *= transform.getScaleX();
-                if (transform.getScaleY() != null) scale[1] *= transform.getScaleY();
-                if (transform.getScaleZ() != null) scale[2] *= transform.getScaleZ();
+                animScale[0] = transform.getScaleX();
+                animScale[1] = transform.getScaleY();
+                animScale[2] = transform.getScaleZ();
             }
 
             if (node instanceof OutlinerGroupNode) {
@@ -120,42 +127,67 @@ public class RenderUtils {
                     }
                 }
 
+                double[] staticPos = new double[]{0,0,0};
+                double[] staticRot = new double[]{0,0,0};
+                double[] staticScale = new double[]{1,1,1};
+
                 Transform staticTransform = transformUtils.getStaticTransform(group.getUuid());
                 if (staticTransform != null) {
-                    if (staticTransform.getX() != null) pos[0] += staticTransform.getX();
-                    if (staticTransform.getY() != null) pos[1] += staticTransform.getY();
-                    if (staticTransform.getZ() != null) pos[2] += staticTransform.getZ();
+                    staticPos[0] = staticTransform.getX();
+                    staticPos[1] = staticTransform.getY();
+                    staticPos[2] = staticTransform.getZ();
 
-                    if (staticTransform.getRotX() != null) rot[0] += staticTransform.getRotX();
-                    if (staticTransform.getRotY() != null) rot[1] += staticTransform.getRotY();
-                    if (staticTransform.getRotZ() != null) rot[2] += staticTransform.getRotZ();
+                    staticRot[0] = staticTransform.getRotX();
+                    staticRot[1] = staticTransform.getRotY();
+                    staticRot[2] = staticTransform.getRotZ();
                     
-                    if (staticTransform.getScaleX() != null) scale[0] *= staticTransform.getScaleX();
-                    if (staticTransform.getScaleY() != null) scale[1] *= staticTransform.getScaleY();
-                    if (staticTransform.getScaleZ() != null) scale[2] *= staticTransform.getScaleZ();
+                    staticScale[0] = staticTransform.getScaleX();
+                    staticScale[1] = staticTransform.getScaleY();
+                    staticScale[2] = staticTransform.getScaleZ();
                 }
                 
+                // Combine animated and static transforms for this step
+                double[] finalPos = new double[]{staticPos[0] + animPos[0], staticPos[1] + animPos[1], staticPos[2] + animPos[2]};
+                double[] finalRot = new double[]{staticRot[0] + animRot[0], staticRot[1] + animRot[1], staticRot[2] + animRot[2]};
+                double[] finalScale = new double[]{staticScale[0] * animScale[0], staticScale[1] * animScale[1], staticScale[2] * animScale[2]};
+                
+                currentSteps.add(new RenderableMesh.TransformStep(group.getUuid(), groupOrigin, finalPos, finalRot, finalScale));
+                
                 if (group.getChildren() != null) {
-                    processOutlinerNode(group.getChildren(), transforms, pos, rot, scale, groupOrigin, meshes);
+                    processOutlinerNode(group.getChildren(), transforms, currentSteps, groupOrigin, meshes, currentUuids);
                 }
             } else if (node.getUuid() != null && (node.getChildren() == null || node.getChildren().isEmpty())) {
                 Element element = findElementByUuid(node.getUuid());
                 if (element != null) {
-                    double[] elementRot = rot.clone();
-                    double[] elementScale = scale.clone();
+                    double[] staticPos = new double[]{0,0,0};
+                    double[] staticRot = new double[]{0,0,0};
+                    double[] staticScale = new double[]{1,1,1};
+                    
                     Transform staticTransform = transformUtils.getStaticTransform(element.getUuid());
                     if (staticTransform != null) {
-                        if (staticTransform.getRotX() != null) elementRot[0] += staticTransform.getRotX();
-                        if (staticTransform.getRotY() != null) elementRot[1] += staticTransform.getRotY();
-                        if (staticTransform.getRotZ() != null) elementRot[2] += staticTransform.getRotZ();
+                        // Elements do not have a static translation that offsets their absolute bounds,
+                        // their geometry is already absolutely positioned.
+                        
+                        staticRot[0] = staticTransform.getRotX();
+                        staticRot[1] = staticTransform.getRotY();
+                        staticRot[2] = staticTransform.getRotZ();
 
-                        if (staticTransform.getScaleX() != null) elementScale[0] *= staticTransform.getScaleX();
-                        if (staticTransform.getScaleY() != null) elementScale[1] *= staticTransform.getScaleY();
-                        if (staticTransform.getScaleZ() != null) elementScale[2] *= staticTransform.getScaleZ();
+                        staticScale[0] = staticTransform.getScaleX();
+                        staticScale[1] = staticTransform.getScaleY();
+                        staticScale[2] = staticTransform.getScaleZ();
                     }
+                    
+                    double[] finalPos = new double[]{staticPos[0] + animPos[0], staticPos[1] + animPos[1], staticPos[2] + animPos[2]};
+                    double[] finalRot = new double[]{staticRot[0] + animRot[0], staticRot[1] + animRot[1], staticRot[2] + animRot[2]};
+                    double[] finalScale = new double[]{staticScale[0] * animScale[0], staticScale[1] * animScale[1], staticScale[2] * animScale[2]};
 
-                    RenderableMesh mesh = createMesh(element, pos, elementRot, elementScale, parentOrigin);
+                    RenderableMesh mesh = createMesh(element, finalPos, finalRot, finalScale, parentOrigin);
                     if (mesh != null) {
+                        // Add the element itself as the final transform step!
+                        currentSteps.add(new RenderableMesh.TransformStep(element.getUuid(), mesh.getLocalOrigin(), finalPos, finalRot, finalScale));
+                        
+                        mesh.setHierarchy(currentUuids);
+                        mesh.setTransformSteps(currentSteps);
                         meshes.add(mesh);
                     }
                 }
@@ -337,21 +369,36 @@ public class RenderUtils {
         if (uv == null || uv.length < 2) {
             return new double[]{0, 0};
         }
-        return new double[]{uv[0] / textureWidth, uv[1] / textureHeight};
+        double tw = this.textureWidth;
+        double th = this.textureHeight;
+        com.danrus.bb4j.model.texture.Texture tex = textureUtils.getTextureByReference(faceData.getTexture());
+        if (tex != null && tex.getWidth() != null && tex.getHeight() != null) {
+            tw = tex.getWidth();
+            th = tex.getHeight();
+        }
+        return new double[]{uv[0] / tw, uv[1] / th};
     }
     
     private RenderableFace createFace(String faceName, Face face, double[] from, double[] to, double[] center) {
         if (face.getUv() == null) return null;
+        
+        double tw = this.textureWidth;
+        double th = this.textureHeight;
+        com.danrus.bb4j.model.texture.Texture tex = textureUtils.getTextureByReference(face.getTexture());
+        if (tex != null && tex.getWidth() != null && tex.getHeight() != null) {
+            tw = tex.getWidth();
+            th = tex.getHeight();
+        }
         
         RenderableFace rf = new RenderableFace();
         rf.setName(faceName);
         double[] originalUv = face.getUv().getUv();
         if (originalUv != null && originalUv.length >= 4) {
             rf.setUv(new double[]{
-                originalUv[0] / textureWidth,
-                originalUv[1] / textureHeight,
-                originalUv[2] / textureWidth,
-                originalUv[3] / textureHeight
+                originalUv[0] / tw,
+                originalUv[1] / th,
+                originalUv[2] / tw,
+                originalUv[3] / th
             });
         } else {
             rf.setUv(new double[]{0, 0, 1, 1});
@@ -404,12 +451,72 @@ public class RenderUtils {
         }
         
         rf.setVertices(new double[][]{v1, v2, v3, v4});
+
+        double[] uvBounds = rf.getUv();
+        double[][] uvCorners = new double[][]{
+            new double[]{uvBounds[0], uvBounds[1]},
+            new double[]{uvBounds[2], uvBounds[1]},
+            new double[]{uvBounds[2], uvBounds[3]},
+            new double[]{uvBounds[0], uvBounds[3]}
+        };
+
+        if (Boolean.TRUE.equals(face.getMirrorUv())) {
+            uvCorners = mirrorUvCornersHorizontal(uvCorners);
+        }
+
+        uvCorners = rotateUvCornersClockwise(uvCorners, face.getRotation());
+
+        int[] vertexToCorner = getFaceVertexToCornerMap(faceName);
+        double[][] vertexUvs = new double[4][2];
+        for (int i = 0; i < 4; i++) {
+            int cornerIndex = vertexToCorner[i];
+            vertexUvs[i][0] = uvCorners[cornerIndex][0];
+            vertexUvs[i][1] = uvCorners[cornerIndex][1];
+        }
+        rf.setVertexUvs(vertexUvs);
+
         rf.setLocalCenter(calculateFaceCenter(rf.getVertices()));
         
         double[] normal = calculateNormal(v1, v2, v3);
         rf.setNormal(normal);
         
         return rf;
+    }
+
+    private int[] getFaceVertexToCornerMap(String faceName) {
+        return switch (faceName) {
+            case "north", "south", "east", "west" -> new int[]{1, 0, 3, 2};
+            case "up", "down" -> new int[]{0, 1, 2, 3};
+            default -> new int[]{0, 1, 2, 3};
+        };
+    }
+
+    private double[][] mirrorUvCornersHorizontal(double[][] corners) {
+        return new double[][]{
+            corners[1],
+            corners[0],
+            corners[3],
+            corners[2]
+        };
+    }
+
+    private double[][] rotateUvCornersClockwise(double[][] corners, Integer rotationDegrees) {
+        if (rotationDegrees == null) {
+            return corners;
+        }
+
+        int normalized = ((rotationDegrees % 360) + 360) % 360;
+        int steps = normalized / 90;
+        double[][] result = corners;
+        for (int i = 0; i < steps; i++) {
+            result = new double[][]{
+                result[3],
+                result[0],
+                result[1],
+                result[2]
+            };
+        }
+        return result;
     }
     
     private double[] calculateNormal(double[] v1, double[] v2, double[] v3) {
@@ -496,6 +603,36 @@ public class RenderUtils {
         
         public double[] getSize() { return size; }
         public void setSize(double[] size) { this.size = size; }
+        
+        private List<String> hierarchy;
+        public List<String> getHierarchy() { return hierarchy; }
+        public void setHierarchy(List<String> hierarchy) { this.hierarchy = hierarchy; }
+        
+        public static class TransformStep {
+            private String uuid;
+            private double[] origin;
+            private double[] position;
+            private double[] rotation;
+            private double[] scale;
+
+            public TransformStep(String uuid, double[] origin, double[] position, double[] rotation, double[] scale) {
+                this.uuid = uuid;
+                this.origin = origin != null ? origin.clone() : new double[]{0,0,0};
+                this.position = position != null ? position.clone() : new double[]{0,0,0};
+                this.rotation = rotation != null ? rotation.clone() : new double[]{0,0,0};
+                this.scale = scale != null ? scale.clone() : new double[]{1,1,1};
+            }
+
+            public String getUuid() { return uuid; }
+            public double[] getOrigin() { return origin; }
+            public double[] getPosition() { return position; }
+            public double[] getRotation() { return rotation; }
+            public double[] getScale() { return scale; }
+        }
+
+        private List<TransformStep> transformSteps;
+        public List<TransformStep> getTransformSteps() { return transformSteps; }
+        public void setTransformSteps(List<TransformStep> transformSteps) { this.transformSteps = transformSteps; }
         
         public String getTextureUuid() { return textureUuid; }
         public void setTextureUuid(String textureUuid) { this.textureUuid = textureUuid; }

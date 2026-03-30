@@ -14,7 +14,7 @@ public class Element {
     private Double[] to;
     private Double[] origin;
     private Double inflate;
-    private Integer[] rotation;
+    private Double[] rotation;
     private Double[] translation;
     private Double[] scale;
     private Boolean shade;
@@ -90,11 +90,11 @@ public class Element {
         this.inflate = inflate;
     }
 
-    public Integer[] getRotation() {
+    public Double[] getRotation() {
         return rotation;
     }
 
-    public void setRotation(Integer[] rotation) {
+    public void setRotation(Double[] rotation) {
         this.rotation = rotation;
     }
 

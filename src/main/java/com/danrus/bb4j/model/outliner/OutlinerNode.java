@@ -11,7 +11,7 @@ public class OutlinerNode {
     private String uuid;
     private String type;
     private String name;
-    private Integer[] rotation;
+    private Double[] rotation;
     private Double[] translation;
     private Double[] origin;
     public Double[] getOrigin() { return origin; }
@@ -54,11 +54,11 @@ public class OutlinerNode {
         this.name = name;
     }
 
-    public Integer[] getRotation() {
+    public Double[] getRotation() {
         return rotation;
     }
 
-    public void setRotation(Integer[] rotation) {
+    public void setRotation(Double[] rotation) {
         this.rotation = rotation;
     }
 

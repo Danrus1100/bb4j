@@ -151,11 +151,17 @@ public class TransformUtils {
         
         if (transform == null || !transform.hasAnyValue()) {
             OutlinerGroupNode group = findGroupByUuid(groupUuid);
+            BbModelDocument.Group documentGroup = findDocumentGroupByUuid(groupUuid);
             if (group != null && group.getRotation() != null) {
                 transform = new Transform();
                 if (group.getRotation().length >= 1) transform.setRotX((double) group.getRotation()[0]);
                 if (group.getRotation().length >= 2) transform.setRotY((double) group.getRotation()[1]);
                 if (group.getRotation().length >= 3) transform.setRotZ((double) group.getRotation()[2]);
+            } else if (documentGroup != null && documentGroup.getRotation() != null) {
+                transform = new Transform();
+                if (documentGroup.getRotation().length >= 1) transform.setRotX(documentGroup.getRotation()[0]);
+                if (documentGroup.getRotation().length >= 2) transform.setRotY(documentGroup.getRotation()[1]);
+                if (documentGroup.getRotation().length >= 3) transform.setRotZ(documentGroup.getRotation()[2]);
             }
         }
         
@@ -193,7 +199,7 @@ public class TransformUtils {
                         transform.setZ((from[2] + to[2]) / 2);
                     }
                     
-                    Integer[] rotation = element.getRotation();
+                    Double[] rotation = element.getRotation();
                     if (rotation != null && rotation.length >= 3) {
                         transform.setRotX((double) rotation[0]);
                         transform.setRotY((double) rotation[1]);
@@ -213,18 +219,23 @@ public class TransformUtils {
         }
         
         OutlinerGroupNode group = findGroupByUuid(targetUuid);
-        if (group != null) {
-            if (group.getRotation() != null && group.getRotation().length >= 3) {
+        BbModelDocument.Group documentGroup = findDocumentGroupByUuid(targetUuid);
+        if (group != null || documentGroup != null) {
+            if (group != null && group.getRotation() != null && group.getRotation().length >= 3) {
                 transform.setRotX((double) group.getRotation()[0]);
                 transform.setRotY((double) group.getRotation()[1]);
                 transform.setRotZ((double) group.getRotation()[2]);
+            } else if (documentGroup != null && documentGroup.getRotation() != null && documentGroup.getRotation().length >= 3) {
+                transform.setRotX(documentGroup.getRotation()[0]);
+                transform.setRotY(documentGroup.getRotation()[1]);
+                transform.setRotZ(documentGroup.getRotation()[2]);
             }
-            if (group.getTranslation() != null && group.getTranslation().length >= 3) {
+            if (group != null && group.getTranslation() != null && group.getTranslation().length >= 3) {
                 transform.setX(group.getTranslation()[0]);
                 transform.setY(group.getTranslation()[1]);
                 transform.setZ(group.getTranslation()[2]);
             }
-            if (group.getScale() != null && group.getScale().length >= 3) {
+            if (group != null && group.getScale() != null && group.getScale().length >= 3) {
                 transform.setScaleX(group.getScale()[0]);
                 transform.setScaleY(group.getScale()[1]);
                 transform.setScaleZ(group.getScale()[2]);
@@ -232,6 +243,18 @@ public class TransformUtils {
         }
         
         return transform;
+    }
+
+    private BbModelDocument.Group findDocumentGroupByUuid(String uuid) {
+        if (uuid == null || document.getGroups() == null) {
+            return null;
+        }
+        for (BbModelDocument.Group group : document.getGroups()) {
+            if (uuid.equals(group.getUuid())) {
+                return group;
+            }
+        }
+        return null;
     }
     
     private OutlinerGroupNode findGroupByUuid(String uuid) {

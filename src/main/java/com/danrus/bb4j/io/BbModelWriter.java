@@ -300,7 +300,7 @@ public class BbModelWriter {
             }
             
             if (element.getRotation() != null) {
-                json.add("rotation", serializeIntArray(element.getRotation()));
+                json.add("rotation", serializeDoubleArray(element.getRotation()));
             }
             
             if (element.getTranslation() != null) {
@@ -342,6 +342,10 @@ public class BbModelWriter {
             
             if (face.getTexture() != null) {
                 faceJson.addProperty("texture", face.getTexture());
+            }
+
+            if (face.getRotation() != null) {
+                faceJson.addProperty("rotation", face.getRotation());
             }
             
             if (face.getCullface() != null) {
@@ -411,7 +415,7 @@ public class BbModelWriter {
             }
             
             if (group.getRotation() != null) {
-                json.add("rotation", serializeIntArray(group.getRotation()));
+                json.add("rotation", serializeDoubleArray(group.getRotation()));
             }
             
             if (group.getMirror() != null) {
@@ -458,7 +462,7 @@ public class BbModelWriter {
         }
         
         if (node.getRotation() != null) {
-            json.add("rotation", serializeIntArray(node.getRotation()));
+            json.add("rotation", serializeDoubleArray(node.getRotation()));
         }
         
         if (node.getTranslation() != null) {

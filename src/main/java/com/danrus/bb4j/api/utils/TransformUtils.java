@@ -432,11 +432,17 @@ public class TransformUtils {
         
         if (transform == null || !transform.hasAnyValue()) {
             OutlinerGroupNode group = findGroupByUuid(groupUuid);
+            BbModelDocument.Group documentGroup = findDocumentGroupByUuid(groupUuid);
             if (group != null && group.getRotation() != null) {
                 transform = new Transform();
-                if (group.getRotation().length >= 1) transform.setRotX((double) group.getRotation()[0]);
-                if (group.getRotation().length >= 2) transform.setRotY((double) group.getRotation()[1]);
-                if (group.getRotation().length >= 3) transform.setRotZ((double) group.getRotation()[2]);
+                if (group.getRotation().length >= 1) transform.setRotX(group.getRotation()[0]);
+                if (group.getRotation().length >= 2) transform.setRotY(group.getRotation()[1]);
+                if (group.getRotation().length >= 3) transform.setRotZ(group.getRotation()[2]);
+            } else if (documentGroup != null && documentGroup.getRotation() != null) {
+                transform = new Transform();
+                if (documentGroup.getRotation().length >= 1) transform.setRotX(documentGroup.getRotation()[0]);
+                if (documentGroup.getRotation().length >= 2) transform.setRotY(documentGroup.getRotation()[1]);
+                if (documentGroup.getRotation().length >= 3) transform.setRotZ(documentGroup.getRotation()[2]);
             }
         }
         
@@ -546,7 +552,7 @@ public class TransformUtils {
                         transform.setZ((from[2] + to[2]) / 2);
                     }
                     
-                    Integer[] rotation = element.getRotation();
+                    Double[] rotation = element.getRotation();
                     if (rotation != null && rotation.length >= 3) {
                         transform.setRotX((double) rotation[0]);
                         transform.setRotY((double) rotation[1]);
@@ -566,18 +572,23 @@ public class TransformUtils {
         }
         
         OutlinerGroupNode group = findGroupByUuid(targetUuid);
-        if (group != null) {
-            if (group.getRotation() != null && group.getRotation().length >= 3) {
-                transform.setRotX((double) group.getRotation()[0]);
-                transform.setRotY((double) group.getRotation()[1]);
-                transform.setRotZ((double) group.getRotation()[2]);
+        BbModelDocument.Group documentGroup = findDocumentGroupByUuid(targetUuid);
+        if (group != null || documentGroup != null) {
+            if (group != null && group.getRotation() != null && group.getRotation().length >= 3) {
+                transform.setRotX(group.getRotation()[0]);
+                transform.setRotY(group.getRotation()[1]);
+                transform.setRotZ(group.getRotation()[2]);
+            } else if (documentGroup != null && documentGroup.getRotation() != null && documentGroup.getRotation().length >= 3) {
+                transform.setRotX(documentGroup.getRotation()[0]);
+                transform.setRotY(documentGroup.getRotation()[1]);
+                transform.setRotZ(documentGroup.getRotation()[2]);
             }
-            if (group.getTranslation() != null && group.getTranslation().length >= 3) {
+            if (group != null && group.getTranslation() != null && group.getTranslation().length >= 3) {
                 transform.setX(group.getTranslation()[0]);
                 transform.setY(group.getTranslation()[1]);
                 transform.setZ(group.getTranslation()[2]);
             }
-            if (group.getScale() != null && group.getScale().length >= 3) {
+            if (group != null && group.getScale() != null && group.getScale().length >= 3) {
                 transform.setScaleX(group.getScale()[0]);
                 transform.setScaleY(group.getScale()[1]);
                 transform.setScaleZ(group.getScale()[2]);
@@ -585,6 +596,18 @@ public class TransformUtils {
         }
         
         return transform;
+    }
+
+    private BbModelDocument.Group findDocumentGroupByUuid(String uuid) {
+        if (uuid == null || document.getGroups() == null) {
+            return null;
+        }
+        for (BbModelDocument.Group group : document.getGroups()) {
+            if (uuid.equals(group.getUuid())) {
+                return group;
+            }
+        }
+        return null;
     }
     
     private OutlinerGroupNode findGroupByUuid(String uuid) {
@@ -614,31 +637,31 @@ public class TransformUtils {
         private Double rotX, rotY, rotZ;
         private Double scaleX, scaleY, scaleZ;
         
-        public Double getX() { return x != null ? x : 0.0; }
+        public double getX() { return x != null ? x : 0.0; }
         public void setX(Double x) { this.x = x; }
         
-        public Double getY() { return y != null ? y : 0.0; }
+        public double getY() { return y != null ? y : 0.0; }
         public void setY(Double y) { this.y = y; }
         
-        public Double getZ() { return z != null ? z : 0.0; }
+        public double getZ() { return z != null ? z : 0.0; }
         public void setZ(Double z) { this.z = z; }
         
-        public Double getRotX() { return rotX != null ? rotX : 0.0; }
+        public double getRotX() { return rotX != null ? rotX : 0.0; }
         public void setRotX(Double rotX) { this.rotX = rotX; }
         
-        public Double getRotY() { return rotY != null ? rotY : 0.0; }
+        public double getRotY() { return rotY != null ? rotY : 0.0; }
         public void setRotY(Double rotY) { this.rotY = rotY; }
         
-        public Double getRotZ() { return rotZ != null ? rotZ : 0.0; }
+        public double getRotZ() { return rotZ != null ? rotZ : 0.0; }
         public void setRotZ(Double rotZ) { this.rotZ = rotZ; }
         
-        public Double getScaleX() { return scaleX != null ? scaleX : 1.0; }
+        public double getScaleX() { return scaleX != null ? scaleX : 1.0; }
         public void setScaleX(Double scaleX) { this.scaleX = scaleX; }
         
-        public Double getScaleY() { return scaleY != null ? scaleY : 1.0; }
+        public double getScaleY() { return scaleY != null ? scaleY : 1.0; }
         public void setScaleY(Double scaleY) { this.scaleY = scaleY; }
         
-        public Double getScaleZ() { return scaleZ != null ? scaleZ : 1.0; }
+        public double getScaleZ() { return scaleZ != null ? scaleZ : 1.0; }
         public void setScaleZ(Double scaleZ) { this.scaleZ = scaleZ; }
         
         public boolean hasAnyValue() {

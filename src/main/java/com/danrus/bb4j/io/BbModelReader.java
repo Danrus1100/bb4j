@@ -373,7 +373,7 @@ public class BbModelReader {
         }
         
         if (json.has("rotation") && json.get("rotation").isJsonArray()) {
-            elem.setRotation(parseIntArray(json.getAsJsonArray("rotation")));
+            elem.setRotation(parseDoubleArray(json.getAsJsonArray("rotation")));
         }
         
         if (json.has("translation") && json.get("translation").isJsonArray()) {
@@ -494,6 +494,10 @@ public class BbModelReader {
                     face.setTexture(null);
                 }
             }
+
+            if (faceJson.has("rotation") && faceJson.get("rotation").isJsonPrimitive()) {
+                face.setRotation(faceJson.get("rotation").getAsInt());
+            }
             
             if (faceJson.has("cullface")) {
                 face.setCullface(faceJson.get("cullface").getAsBoolean());
@@ -551,7 +555,7 @@ public class BbModelReader {
             }
             
             if (json.has("rotation") && json.get("rotation").isJsonArray()) {
-                group.setRotation(parseIntArray(json.getAsJsonArray("rotation")));
+                group.setRotation(parseDoubleArray(json.getAsJsonArray("rotation")));
             }
             
             if (json.has("origin") && json.get("origin").isJsonArray()) {
@@ -615,7 +619,7 @@ public class BbModelReader {
             }
             
             if (json.has("rotation") && json.get("rotation").isJsonArray()) {
-                group.setRotation(parseIntArray(json.getAsJsonArray("rotation")));
+                group.setRotation(parseDoubleArray(json.getAsJsonArray("rotation")));
             }
             
             if (json.has("origin") && json.get("origin").isJsonArray()) {

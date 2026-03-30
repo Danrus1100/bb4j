@@ -224,6 +224,29 @@ public class BbModelDocument {
                 .orElse(null);
     }
 
+    public String findGroupUuidByName(String name) {
+        if (name == null || name.isBlank() || groups == null || groups.isEmpty()) {
+            return null;
+        }
+
+        return groups.stream()
+                .filter(g -> name.equals(g.getName()))
+                .map(Group::getUuid)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public Group findGroupByUuid(String uuid) {
+        if (uuid == null || uuid.isBlank() || groups == null || groups.isEmpty()) {
+            return null;
+        }
+
+        return groups.stream()
+                .filter(g -> uuid.equals(g.getUuid()))
+                .findFirst()
+                .orElse(null);
+    }
+
     public static class Group {
         private Double[] origin;
         public Double[] getOrigin() { return origin; }
@@ -233,7 +256,7 @@ public class BbModelDocument {
         
         
         
-        private Integer[] rotation;
+        private Double[] rotation;
         private Boolean mirror;
         private Integer[] stretch;
         private Integer boxSize;
@@ -265,7 +288,7 @@ public class BbModelDocument {
             this.name = name;
         }
 
-        public Integer[] getRotation() {
+        public Double[] getRotation() {
             return rotation;
         }
 
@@ -273,7 +296,7 @@ public class BbModelDocument {
         
         
 
-        public void setRotation(Integer[] rotation) {
+        public void setRotation(Double[] rotation) {
             this.rotation = rotation;
         }
 
