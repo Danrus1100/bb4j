@@ -1,8 +1,11 @@
 package com.danrus.bb4j.model.project;
 
+import java.util.Map;
+
 public class Resolution {
     private Integer width;
     private Integer height;
+    private Map<String, Object> extra;
 
     public Resolution() {}
 
@@ -25,6 +28,14 @@ public class Resolution {
 
     public void setHeight(Integer height) {
         this.height = height;
+    }
+
+    public Map<String, Object> getExtra() {
+        return extra;
+    }
+
+    public void setExtra(Map<String, Object> extra) {
+        this.extra = extra;
     }
 
     @Override

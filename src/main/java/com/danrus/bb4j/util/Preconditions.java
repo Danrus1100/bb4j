@@ -1,5 +1,12 @@
 package com.danrus.bb4j.util;
 
+/**
+ * Guava-style argument/state validation helpers.
+ *
+ * @deprecated Currently unused within the library. Kept for now in case external
+ * consumers depend on it; may be removed in a future release.
+ */
+@Deprecated
 public class Preconditions {
     
     public static void checkArgument(boolean expression, String message) {

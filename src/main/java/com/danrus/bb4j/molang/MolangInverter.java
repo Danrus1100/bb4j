@@ -13,6 +13,10 @@ public class MolangInverter {
         }
         
         if (isStringNumber(molang)) {
+            if (!molang.contains(".")) {
+                long val = Long.parseLong(molang);
+                return String.valueOf(-val);
+            }
             double val = Double.parseDouble(molang);
             return String.valueOf(-val);
         }
@@ -72,6 +76,12 @@ public class MolangInverter {
         return STRING_NUM_REGEX.matcher(string).matches();
     }
 
+    /**
+     * @deprecated Non-functional stub that always returns {@code 0}. Use
+     * {@link MolangEvaluator} to actually evaluate a Molang expression. Will be
+     * removed in a future release.
+     */
+    @Deprecated(forRemoval = true)
     public static double evaluate(String molang) {
         return 0;
     }

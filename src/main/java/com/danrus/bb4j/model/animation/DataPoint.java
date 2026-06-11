@@ -1,10 +1,21 @@
 package com.danrus.bb4j.model.animation;
 
+import java.util.Map;
+
+/**
+ * The value(s) held at a {@link Keyframe}, one component per axis
+ * ({@code x}/{@code y}/{@code z}, plus {@code w} for some channels).
+ *
+ * <p>Each component is stored as a {@code String} rather than a number because a
+ * Blockbench keyframe value may be either a literal number or a Molang
+ * expression; keeping it as text preserves the original verbatim.
+ */
 public class DataPoint {
     private String x;
     private String y;
     private String z;
     private String w;
+    private Map<String, Object> extra;
 
     public DataPoint() {}
 
@@ -53,6 +64,14 @@ public class DataPoint {
         this.w = w;
     }
 
+    public Map<String, Object> getExtra() {
+        return extra;
+    }
+
+    public void setExtra(Map<String, Object> extra) {
+        this.extra = extra;
+    }
+
     public boolean isNumeric() {
         try {
             if (x != null) Double.parseDouble(x);
@@ -71,6 +90,7 @@ public class DataPoint {
         copy.y = this.y;
         copy.z = this.z;
         copy.w = this.w;
+        copy.extra = this.extra;
         return copy;
     }
 }

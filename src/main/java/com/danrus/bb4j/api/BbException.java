@@ -1,5 +1,13 @@
 package com.danrus.bb4j.api;
 
+/**
+ * Unchecked exception raised for all bb4j failures surfaced to callers.
+ *
+ * <p>Each instance optionally carries a short, stable {@link #getErrorCode()
+ * error code} (e.g. {@code "INVALID_FORMAT"}, {@code "UNSUPPORTED_VERSION"},
+ * {@code "PARSE_ERROR"}, {@code "IO_ERROR"}) suitable for programmatic handling.
+ * Use the static factory helpers to construct the common cases.
+ */
 public class BbException extends RuntimeException {
     private final String errorCode;
 

@@ -3,6 +3,15 @@ package com.danrus.bb4j.model.animation;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A single keyframe on an {@link Animator}'s timeline.
+ *
+ * <p>A keyframe has a {@code time}, a {@code channel} (position/rotation/scale/…),
+ * an {@link Interpolation} mode, and one or more {@link DataPoint}s holding the
+ * channel values (which may be numbers or Molang expressions). When the
+ * interpolation is Bézier, the {@code bezierLeft*}/{@code bezierRight*} handle
+ * arrays describe the curve tangents.
+ */
 public class Keyframe {
     public static final String CHANNEL_POSITION = "position";
     public static final String CHANNEL_ROTATION = "rotation";

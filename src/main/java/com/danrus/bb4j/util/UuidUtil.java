@@ -3,6 +3,13 @@ package com.danrus.bb4j.util;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+/**
+ * Helpers for generating, validating, and shortening/expanding UUID strings.
+ *
+ * @deprecated Currently unused within the library. Kept for now in case external
+ * consumers depend on it; may be removed in a future release.
+ */
+@Deprecated
 public class UuidUtil {
     
     private static final Pattern UUID_PATTERN = Pattern.compile(

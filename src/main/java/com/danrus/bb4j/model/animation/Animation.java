@@ -3,16 +3,32 @@ package com.danrus.bb4j.model.animation;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * A single named animation.
+ *
+ * <p>It carries timing ({@code length}, {@code start_time}/{@code end_time}),
+ * playback flags ({@code loop}, {@code override}, {@code anim_time_update}), and a
+ * map of {@link Animator}s keyed by the animated target's UUID. The {@code loop}
+ * field is stored as a {@code Double} because Blockbench expresses it variously as
+ * a boolean, the string {@code "loop"}, or a number; the reader normalizes those.
+ */
 public class Animation {
+    /** Play the animation once and stop ({@code "once"}). */
+    public static final String LOOP_ONCE = "once";
+    /** Loop the animation continuously ({@code "loop"}). */
+    public static final String LOOP_LOOP = "loop";
+    /** Play once and hold the final frame ({@code "hold"}). */
+    public static final String LOOP_HOLD = "hold";
+
     private String uuid;
     private String name;
     private String path;
-    private Double loop;
+    private String loop;
     private Double startTime;
     private Double endTime;
     private Double length;
     private Boolean override;
-    private Boolean animTimeUpdate;
+    private String animTimeUpdate;
     private Boolean special;
     private Map<String, Animator> animators;
     private Map<String, Object> extra;
@@ -50,12 +66,22 @@ public class Animation {
         this.path = path;
     }
 
-    public Double getLoop() {
+    /**
+     * The loop mode: {@link #LOOP_ONCE}, {@link #LOOP_LOOP}, or {@link #LOOP_HOLD}.
+     * Stored as a string to match Blockbench's {@code .bbmodel} format (older
+     * boolean/numeric representations are normalized to this enum on read).
+     */
+    public String getLoop() {
         return loop;
     }
 
-    public void setLoop(Double loop) {
+    public void setLoop(String loop) {
         this.loop = loop;
+    }
+
+    /** @return {@code true} if this animation loops continuously. */
+    public boolean isLooping() {
+        return LOOP_LOOP.equals(loop);
     }
 
     public Double getStartTime() {
@@ -90,11 +116,11 @@ public class Animation {
         this.override = override;
     }
 
-    public Boolean getAnimTimeUpdate() {
+    public String getAnimTimeUpdate() {
         return animTimeUpdate;
     }
 
-    public void setAnimTimeUpdate(Boolean animTimeUpdate) {
+    public void setAnimTimeUpdate(String animTimeUpdate) {
         this.animTimeUpdate = animTimeUpdate;
     }
 

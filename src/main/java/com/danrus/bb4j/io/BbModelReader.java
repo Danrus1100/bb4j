@@ -17,21 +17,48 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+/**
+ * Parses {@code .bbmodel} bytes into a {@link BbModelDocument}.
+ *
+ * <p>Parsing is manual, field-by-field traversal of the Gson
+ * {@link JsonObject} tree (no reflective binding). LZ-UTF8 compression is
+ * transparently detected/decompressed per the {@link CompressionMode}, and
+ * version migrations run afterwards unless {@link VersionPolicy#IGNORE} is set.
+ *
+ * <p>When {@link ReadOptions#isPreserveExtraFields()} is enabled, every key not
+ * explicitly modeled is captured into the enclosing object's {@code extra} map
+ * (or {@link BbModelDocument#getRawData()} at the top level) so the
+ * {@link BbModelWriter} can re-emit it. This class is the de-facto schema: keep
+ * it symmetric with the writer.
+ *
+ * <p>Callers should use the {@link com.danrus.bb4j.api.BbModel} facade rather
+ * than this class directly.
+ */
 public class BbModelReader {
     private static final JsonCodec JSON_CODEC = new JsonCodec();
-    private static final String CURRENT_FORMAT_VERSION = "5.0";
 
     public static BbModelDocument read(String json, ReadOptions options) {
         String decompressed = decompressIfNeeded(json, options.getCompressionMode());
-        JsonObject root = JSON_CODEC.parse(decompressed).getAsJsonObject();
-        
+        JsonElement parsed = JSON_CODEC.parse(decompressed);
+        if (parsed == null || !parsed.isJsonObject()) {
+            // Gson accepts an empty/blank string as JSON null and other valid-but-
+            // non-object documents; surface those as a clean PARSE_ERROR rather than
+            // letting getAsJsonObject() throw a raw IllegalStateException at callers.
+            throw BbException.parseError("Expected a JSON object at the document root");
+        }
+        JsonObject root = parsed.getAsJsonObject();
+
         BbModelDocument document = parseDocument(root, options);
         
         if (options.getVersionPolicy() != VersionPolicy.IGNORE) {
@@ -61,7 +88,7 @@ public class BbModelReader {
 
     public static BbModelDocument read(InputStream inputStream, ReadOptions options) {
         try {
-            String content = new String(inputStream.readAllBytes());
+            String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
             return read(content, options);
         } catch (IOException e) {
             throw BbException.ioError("Failed to read input stream", e);
@@ -70,10 +97,10 @@ public class BbModelReader {
 
     public static BbModelDocument read(Reader reader, ReadOptions options) {
         try {
-            BufferedReader bufferedReader = new BufferedReader(reader);
-            String content = bufferedReader.lines().collect(java.util.stream.Collectors.joining("\n"));
-            return read(content, options);
-        } catch (Exception e) {
+            java.io.StringWriter writer = new java.io.StringWriter();
+            reader.transferTo(writer);
+            return read(writer.toString(), options);
+        } catch (IOException e) {
             throw BbException.ioError("Failed to read reader", e);
         }
     }
@@ -230,21 +257,29 @@ public class BbModelReader {
         if (json.has("added_models")) {
             meta.setAddedModels(json.get("added_models").getAsInt());
         }
-        
+
+        meta.setExtra(extractExtra(json,
+                "format_version", "format", "model_format", "project_id", "name",
+                "model_identifier", "box_uv", "visible_box", "shadow", "bone_rig",
+                "mimic", "texture_width", "texture_height", "creation_time",
+                "modify_time", "backup", "added_models"));
+
         return meta;
     }
 
     private static Resolution parseResolution(JsonObject json) {
         Resolution resolution = new Resolution();
-        
+
         if (json.has("width")) {
             resolution.setWidth(json.get("width").getAsInt());
         }
-        
+
         if (json.has("height")) {
             resolution.setHeight(json.get("height").getAsInt());
         }
-        
+
+        resolution.setExtra(extractExtra(json, "width", "height"));
+
         return resolution;
     }
 
@@ -280,11 +315,11 @@ public class BbModelReader {
             }
             
             if (json.has("render_sides")) {
-                texture.setRenderSides(json.get("render_sides").getAsBoolean());
+                texture.setRenderSides(json.get("render_sides").getAsString());
             }
             
             if (json.has("id")) {
-                texture.setId(json.get("id").getAsInt());
+                texture.setId(json.get("id").getAsString());
             }
             
             if (json.has("width")) {
@@ -314,7 +349,12 @@ public class BbModelReader {
             if (json.has("pinned")) {
                 texture.setPinned(json.get("pinned").getAsBoolean());
             }
-            
+
+            texture.setExtra(extractExtra(json,
+                    "uuid", "name", "path", "relative_path", "source", "internal",
+                    "render_sides", "id", "width", "height", "uv_width", "uv_height",
+                    "particle_data", "folder", "pinned"));
+
             textures.add(texture);
         }
         
@@ -408,7 +448,11 @@ public class BbModelReader {
                 meshElement.setMeshFaces(parseMeshFaces(json.getAsJsonObject("faces")));
             }
         }
-        
+
+        elem.setExtra(extractExtra(json,
+                "type", "uuid", "name", "from", "to", "origin", "inflate", "rotation",
+                "translation", "scale", "shade", "mirror_uv", "box_uv", "faces", "vertices"));
+
         return elem;
     }
 
@@ -500,7 +544,7 @@ public class BbModelReader {
             }
             
             if (faceJson.has("cullface")) {
-                face.setCullface(faceJson.get("cullface").getAsBoolean());
+                face.setCullface(faceJson.get("cullface").getAsString());
             }
             
             if (faceJson.has("tintindex")) {
@@ -510,7 +554,10 @@ public class BbModelReader {
             if (faceJson.has("mirror_uv")) {
                 face.setMirrorUv(faceJson.get("mirror_uv").getAsBoolean());
             }
-            
+
+            face.setExtra(extractExtra(faceJson,
+                    "uv", "texture", "rotation", "cullface", "tintindex", "mirror_uv"));
+
             faces.put(key, face);
         }
         
@@ -577,7 +624,11 @@ public class BbModelReader {
             if (json.has("export")) {
                 group.setExport(json.get("export").getAsBoolean());
             }
-            
+
+            group.setExtra(extractExtra(json,
+                    "uuid", "name", "rotation", "origin", "mirror", "stretch",
+                    "box_size", "export"));
+
             groups.add(group);
         }
         
@@ -641,11 +692,19 @@ public class BbModelReader {
             if (json.has("stretch") && json.get("stretch").isJsonArray()) {
                 group.setStretch(parseIntArray(json.getAsJsonArray("stretch")));
             }
-            
+
+            if (json.has("box_size")) {
+                group.setBoxSize(json.get("box_size").getAsInt());
+            }
+
             if (json.has("export")) {
                 group.setExport(json.get("export").getAsBoolean());
             }
-            
+
+            group.setExtra(extractExtra(json,
+                    "uuid", "name", "type", "rotation", "origin", "translation", "scale",
+                    "mirror", "stretch", "box_size", "export", "children"));
+
             if (json.has("children") && json.get("children").isJsonArray()) {
                 JsonArray children = json.getAsJsonArray("children");
                 for (JsonElement child : children) {
@@ -655,7 +714,7 @@ public class BbModelReader {
                     }
                 }
             }
-            
+
             return group;
         }
         
@@ -677,19 +736,16 @@ public class BbModelReader {
                 animation.setName(json.get("name").getAsString());
             }
             
-            if (json.has("loop")) {
-                JsonElement loopEl = json.get("loop");
-                if (loopEl.isJsonPrimitive() && loopEl.getAsJsonPrimitive().isBoolean()) {
-                    animation.setLoop(loopEl.getAsBoolean() ? 1.0 : 0.0);
-                } else if (loopEl.isJsonPrimitive() && loopEl.getAsJsonPrimitive().isString()) {
-                    String loop = loopEl.getAsString();
-                    if ("loop".equalsIgnoreCase(loop) || "true".equalsIgnoreCase(loop)) {
-                        animation.setLoop(1.0);
-                    } else {
-                        animation.setLoop(0.0);
-                    }
+            if (json.has("loop") && json.get("loop").isJsonPrimitive()) {
+                // Blockbench 5.0 stores loop as the string enum "once"/"loop"/"hold".
+                // Older formats used a boolean or a number; normalize those.
+                com.google.gson.JsonPrimitive loopEl = json.get("loop").getAsJsonPrimitive();
+                if (loopEl.isString()) {
+                    animation.setLoop(loopEl.getAsString());
+                } else if (loopEl.isBoolean()) {
+                    animation.setLoop(loopEl.getAsBoolean() ? Animation.LOOP_LOOP : Animation.LOOP_ONCE);
                 } else {
-                    animation.setLoop(loopEl.getAsDouble());
+                    animation.setLoop(loopEl.getAsDouble() != 0 ? Animation.LOOP_LOOP : Animation.LOOP_ONCE);
                 }
             }
             
@@ -710,17 +766,25 @@ public class BbModelReader {
             }
             
             if (json.has("anim_time_update")) {
-                animation.setAnimTimeUpdate(json.get("anim_time_update").getAsBoolean());
+                animation.setAnimTimeUpdate(json.get("anim_time_update").getAsString());
             }
             
             if (json.has("special")) {
                 animation.setSpecial(json.get("special").getAsBoolean());
             }
             
+            if (json.has("path")) {
+                animation.setPath(json.get("path").getAsString());
+            }
+
             if (json.has("animators") && json.get("animators").isJsonObject()) {
                 animation.setAnimators(parseAnimators(json.getAsJsonObject("animators")));
             }
-            
+
+            animation.setExtra(extractExtra(json,
+                    "uuid", "name", "loop", "start_time", "end_time", "length",
+                    "override", "anim_time_update", "special", "path", "animators"));
+
             animations.add(animation);
         }
         
@@ -745,7 +809,9 @@ public class BbModelReader {
             if (animatorJson.has("keyframes") && animatorJson.get("keyframes").isJsonArray()) {
                 animator.setKeyframes(parseKeyframes(animatorJson.getAsJsonArray("keyframes")));
             }
-            
+
+            animator.setExtra(extractExtra(animatorJson, "name", "type", "keyframes"));
+
             animators.put(key, animator);
         }
         
@@ -790,7 +856,12 @@ public class BbModelReader {
             if (json.has("bezier_right_time") && json.get("bezier_right_time").isJsonArray()) {
                 keyframe.setBezierRightTime(parseDoubleArray(json.getAsJsonArray("bezier_right_time")));
             }
-            
+
+            keyframe.setExtra(extractExtra(json,
+                    "time", "channel", "interpolation", "data_points",
+                    "bezier_left_value", "bezier_right_value",
+                    "bezier_left_time", "bezier_right_time"));
+
             keyframes.add(keyframe);
         }
         
@@ -823,7 +894,9 @@ public class BbModelReader {
                 JsonElement w = json.get("w");
                 dataPoint.setW(w.isJsonNull() ? null : w.getAsString());
             }
-            
+
+            dataPoint.setExtra(extractExtra(json, "x", "y", "z", "w"));
+
             dataPoints.add(dataPoint);
         }
         
@@ -844,7 +917,9 @@ public class BbModelReader {
             if (json.has("name")) {
                 controller.setName(json.get("name").getAsString());
             }
-            
+
+            controller.setExtra(extractExtra(json, "uuid", "name"));
+
             controllers.add(controller);
         }
         
@@ -872,7 +947,9 @@ public class BbModelReader {
                 if (slotJson.has("scale") && slotJson.get("scale").isJsonArray()) {
                     slot.setScale(parseDoubleArray(slotJson.getAsJsonArray("scale")));
                 }
-                
+
+                slot.setExtra(extractExtra(slotJson, "rotation", "translation", "scale"));
+
                 slots.put(key, slot);
             }
             
@@ -916,7 +993,10 @@ public class BbModelReader {
             if (json.has("layer")) {
                 image.setLayer(json.get("layer").getAsString());
             }
-            
+
+            image.setExtra(extractExtra(json,
+                    "uuid", "name", "position", "size", "source", "is_blueprint", "layer"));
+
             images.add(image);
         }
         
@@ -957,7 +1037,11 @@ public class BbModelReader {
         if (json.has("exploded_view")) {
             state.setExplodedView(json.get("exploded_view").getAsBoolean());
         }
-        
+
+        state.setExtra(extractExtra(json,
+                "save_path", "export_path", "saved", "added_models", "mode", "tool",
+                "display_uv", "exploded_view"));
+
         return state;
     }
 
@@ -979,7 +1063,9 @@ public class BbModelReader {
                 if (entryJson.has("time")) {
                     entry.setTime(entryJson.get("time").getAsLong());
                 }
-                
+
+                entry.setExtra(extractExtra(entryJson, "action", "time"));
+
                 entries.add(entry);
             }
             
@@ -989,7 +1075,9 @@ public class BbModelReader {
         if (json.has("history_index")) {
             history.setHistoryIndex(json.get("history_index").getAsInt());
         }
-        
+
+        history.setExtra(extractExtra(json, "history", "history_index"));
+
         return history;
     }
 
@@ -1040,7 +1128,10 @@ public class BbModelReader {
             if (json.has("hidden")) {
                 collection.setHidden(json.get("hidden").getAsBoolean());
             }
-            
+
+            collection.setExtra(extractExtra(json,
+                    "uuid", "name", "order", "color", "locked", "hidden"));
+
             collections.add(collection);
         }
         
@@ -1069,11 +1160,41 @@ public class BbModelReader {
             if (json.has("folder")) {
                 group.setFolder(json.get("folder").getAsString());
             }
-            
+
+            if (json.has("textures") && json.get("textures").isJsonArray()) {
+                List<String> textureUuids = new ArrayList<>();
+                for (JsonElement t : json.getAsJsonArray("textures")) {
+                    if (t.isJsonPrimitive()) {
+                        textureUuids.add(t.getAsString());
+                    }
+                }
+                group.setTextures(textureUuids);
+            }
+
+            group.setExtra(extractExtra(json, "uuid", "name", "order", "folder", "textures"));
+
             groups.add(group);
         }
-        
+
         return groups;
+    }
+
+    /**
+     * Captures every key of {@code json} that is not in {@code knownKeys} into a
+     * map, so that unrecognized fields survive a read/write round-trip. The raw
+     * {@link JsonElement} values are stored verbatim and re-emitted by the writer.
+     *
+     * @return a map of unknown fields, or {@code null} if there were none
+     */
+    private static Map<String, Object> extractExtra(JsonObject json, String... knownKeys) {
+        Set<String> known = new HashSet<>(Arrays.asList(knownKeys));
+        Map<String, Object> extra = new HashMap<>();
+        for (String key : json.keySet()) {
+            if (!known.contains(key)) {
+                extra.put(key, json.get(key));
+            }
+        }
+        return extra.isEmpty() ? null : extra;
     }
 
     private static Map<String, Object> extractExtraFields(JsonObject root) {

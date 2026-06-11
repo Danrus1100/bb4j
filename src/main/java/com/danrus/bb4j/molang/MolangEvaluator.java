@@ -1,17 +1,11 @@
 package com.danrus.bb4j.molang;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MolangEvaluator {
-    
+
     private final Map<String, Double> variables;
     private final Map<String, Double> temporaries;
-    
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile(
-        "([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)"
-    );
     
     public MolangEvaluator() {
         this.variables = new HashMap<>();
@@ -168,11 +162,15 @@ public class MolangEvaluator {
     }
     
     private double executeFunction(String funcName, String[] args) {
+        if (funcName.startsWith("math.")) {
+            funcName = funcName.substring(5);
+        }
+
         double[] evalArgs = new double[args.length];
         for (int i = 0; i < args.length; i++) {
             evalArgs[i] = evaluate(args[i]);
         }
-        
+
         switch (funcName) {
             case "sin":
                 return evalArgs.length > 0 ? Math.sin(Math.toRadians(evalArgs[0])) : 0;

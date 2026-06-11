@@ -2,6 +2,15 @@ package com.danrus.bb4j.model.geometry;
 
 import java.util.Map;
 
+/**
+ * One face of a {@link CubeElement}, identified by direction
+ * (north/south/east/west/up/down).
+ *
+ * <p>It records the {@link Uv} rectangle into the texture, the referenced
+ * {@code texture}, an optional UV {@code rotation}, the {@code cullface}
+ * direction string (e.g. {@code "north"}, {@code "down"}), and the
+ * {@code tintindex} and {@code mirror_uv} flags.
+ */
 public class Face {
     public static final String NORTH = "north";
     public static final String SOUTH = "south";
@@ -14,7 +23,7 @@ public class Face {
     private Uv uv;
     private String texture;
     private Integer rotation;
-    private Boolean cullface;
+    private String cullface;
     private Integer tintindex;
     private Boolean mirrorUv;
     private Map<String, Object> extra;
@@ -65,11 +74,11 @@ public class Face {
         this.rotation = rotation;
     }
 
-    public Boolean getCullface() {
+    public String getCullface() {
         return cullface;
     }
 
-    public void setCullface(Boolean cullface) {
+    public void setCullface(String cullface) {
         this.cullface = cullface;
     }
 

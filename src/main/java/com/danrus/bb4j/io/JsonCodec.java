@@ -16,7 +16,7 @@ public class JsonCodec {
     private final Gson prettyGson;
 
     public JsonCodec() {
-        this.gson = new Gson();
+        this.gson = new GsonBuilder().serializeNulls().create();
         this.prettyGson = new GsonBuilder()
                 .setPrettyPrinting()
                 .serializeNulls()
@@ -41,6 +41,18 @@ public class JsonCodec {
 
     public String toJson(Object obj) {
         return gson.toJson(obj);
+    }
+
+    /**
+     * Converts an arbitrary Java value into a Gson {@link JsonElement} tree.
+     * Used when re-emitting preserved "extra" fields that were stored as plain
+     * Java objects rather than as {@link JsonElement}s.
+     *
+     * @param obj the value to convert (may be {@code null})
+     * @return the corresponding JSON tree
+     */
+    public JsonElement toTree(Object obj) {
+        return gson.toJsonTree(obj);
     }
 
     public String toPrettyJson(Object obj) {

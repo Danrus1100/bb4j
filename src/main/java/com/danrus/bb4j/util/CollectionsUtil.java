@@ -3,6 +3,13 @@ package com.danrus.bb4j.util;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Null-safe collection helpers (empty checks, null/empty conversions, set ops).
+ *
+ * @deprecated Currently unused within the library. Kept for now in case external
+ * consumers depend on it; may be removed in a future release.
+ */
+@Deprecated
 public class CollectionsUtil {
     
     public static <T> boolean isEmpty(Collection<T> collection) {

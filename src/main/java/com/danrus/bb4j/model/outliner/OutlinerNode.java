@@ -2,8 +2,19 @@ package com.danrus.bb4j.model.outliner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+/**
+ * A node in the outliner scene tree.
+ *
+ * <p>Concretely a node is one of two things: an {@link OutlinerGroupNode} (a
+ * named group/bone with a transform and {@link #getChildren() children}) or an
+ * {@link OutlinerElementRefNode} (a leaf that references an
+ * {@link com.danrus.bb4j.model.geometry.Element} by UUID). In JSON the former is
+ * an object and the latter a bare string. This base class carries the fields
+ * shared by group nodes; element references override the leaf behaviour.
+ */
 public class OutlinerNode {
     public static final String GROUP = "group";
     public static final String EMPTY = "empty";
@@ -12,14 +23,13 @@ public class OutlinerNode {
     private String type;
     private String name;
     private Double[] rotation;
-    private Double[] translation;
     private Double[] origin;
-    public Double[] getOrigin() { return origin; }
-    public void setOrigin(Double[] origin) { this.origin = origin; }
+    private Double[] translation;
     private Double[] scale;
     private Boolean export;
     private List<OutlinerNode> children;
     private Object raw;
+    private Map<String, Object> extra;
 
     public OutlinerNode() {
         this.uuid = UUID.randomUUID().toString();
@@ -62,6 +72,14 @@ public class OutlinerNode {
         this.rotation = rotation;
     }
 
+    public Double[] getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(Double[] origin) {
+        this.origin = origin;
+    }
+
     public Double[] getTranslation() {
         return translation;
     }
@@ -100,6 +118,14 @@ public class OutlinerNode {
 
     public void setRaw(Object raw) {
         this.raw = raw;
+    }
+
+    public Map<String, Object> getExtra() {
+        return extra;
+    }
+
+    public void setExtra(Map<String, Object> extra) {
+        this.extra = extra;
     }
 
     public boolean isGroup() {

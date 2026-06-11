@@ -16,6 +16,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * In-memory representation of a whole {@code .bbmodel} project — the root
+ * aggregate of the model.
+ *
+ * <p>Top-level collections (textures, elements, groups, outliner, animations,
+ * animation controllers, reference images, collections, texture groups) are
+ * exposed as typed lists. Smaller structures are nested static classes:
+ * {@link Group}, {@link AnimationController}, {@link ReferenceImage},
+ * {@link Collection}, {@link ExportOptions}, and {@link Warning}.
+ *
+ * <p>Unrecognized top-level JSON fields captured on read are stored in
+ * {@link #getRawData()} and re-emitted on write, so a read/write round-trip stays
+ * lossless. {@link #getWarnings()} collects non-fatal issues raised during
+ * reading/migration.
+ *
+ * <p>New instances start with sensible empty defaults (a {@code 16x16} resolution
+ * and empty collections), making this class also suitable for building a model
+ * from scratch.
+ */
 public class BbModelDocument {
     private Meta meta;
     private Resolution resolution;

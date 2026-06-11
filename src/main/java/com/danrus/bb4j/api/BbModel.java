@@ -11,14 +11,39 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Path;
 
+/**
+ * Static facade for reading and writing Blockbench {@code .bbmodel} files — the
+ * single entry point most callers need.
+ *
+ * <p>Both {@code read} and {@code write} are overloaded for {@code String},
+ * {@code File}, {@code Path}, {@code InputStream}/{@code OutputStream}, and
+ * {@code Reader}/{@code Writer}. Each accepts an optional
+ * {@link ReadOptions}/{@link WriteOptions}; the no-options overloads use the
+ * defaults. Reading auto-detects LZ-UTF8 compression and runs version migrations
+ * unless {@link VersionPolicy#IGNORE} is selected.
+ *
+ * <pre>{@code
+ * BbModelDocument doc = BbModel.read(Path.of("model.bbmodel"));
+ * BbModel.write(doc, Path.of("out.bbmodel"));
+ * }</pre>
+ *
+ * <p>All failures are reported as {@link BbException}. This class is not
+ * instantiable.
+ *
+ * @see BbModelDocument
+ * @see ReadOptions
+ * @see WriteOptions
+ */
 public class BbModel {
 
     private BbModel() {}
 
+    /** Reads a document from a JSON (or LZ-UTF8) string using default options. */
     public static BbModelDocument read(String json) {
         return read(json, ReadOptions.builder());
     }
 
+    /** Reads a document from a JSON (or LZ-UTF8) string using the given options. */
     public static BbModelDocument read(String json, ReadOptions options) {
         return BbModelReader.read(json, options);
     }
@@ -55,10 +80,12 @@ public class BbModel {
         return BbModelReader.read(reader, options);
     }
 
+    /** Serializes a document to a JSON string using default write options. */
     public static String write(BbModelDocument document) {
         return write(document, WriteOptions.builder());
     }
 
+    /** Serializes a document to a string (JSON or LZ-UTF8) using the given options. */
     public static String write(BbModelDocument document, WriteOptions options) {
         return BbModelWriter.write(document, options);
     }

@@ -3,6 +3,17 @@ package com.danrus.bb4j.model.texture;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * A single texture referenced by a model.
+ *
+ * <p>A texture may live on disk (see {@link #getPath()} /
+ * {@link #getRelativePath()}, {@link #hasFileReference()}) or be embedded inline
+ * as a {@code data:} URL in {@link #getSource()} (see {@link #isEmbedded()}). It
+ * also records pixel dimensions and the UV space ({@code uvWidth}/{@code uvHeight})
+ * faces map into.
+ *
+ * @see com.danrus.bb4j.assets.TextureContentLoader
+ */
 public class Texture {
     private String uuid;
     private String name;
@@ -10,8 +21,8 @@ public class Texture {
     private String relativePath;
     private String source;
     private Boolean internal;
-    private Boolean renderSides;
-    private Integer id;
+    private String renderSides;
+    private String id;
     private Integer width;
     private Integer height;
     private Integer uvWidth;
@@ -78,19 +89,19 @@ public class Texture {
         this.internal = internal;
     }
 
-    public Boolean getRenderSides() {
+    public String getRenderSides() {
         return renderSides;
     }
 
-    public void setRenderSides(Boolean renderSides) {
+    public void setRenderSides(String renderSides) {
         this.renderSides = renderSides;
     }
 
-    public Integer getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(String id) {
         this.id = id;
     }
 

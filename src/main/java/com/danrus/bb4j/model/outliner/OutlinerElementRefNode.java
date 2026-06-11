@@ -1,5 +1,10 @@
 package com.danrus.bb4j.model.outliner;
 
+/**
+ * A leaf outliner node that references an
+ * {@link com.danrus.bb4j.model.geometry.Element} by its UUID. Serialized as a
+ * bare string in the {@code outliner} array.
+ */
 public class OutlinerElementRefNode extends OutlinerNode {
     private String elementUuid;
 

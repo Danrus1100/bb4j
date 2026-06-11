@@ -3,6 +3,15 @@ package com.danrus.bb4j.model.meta;
 import java.time.Instant;
 import java.util.Map;
 
+/**
+ * The {@code meta} header block of a project.
+ *
+ * <p>Holds the {@link FormatVersion}, the {@link ModelFormatId}, project
+ * identity (id/name/identifier), global UV and box flags, texture dimensions, and
+ * creation/modify timestamps. Timestamps are epoch seconds; see
+ * {@link #getCreationTimeAsInstant()} / {@link #getModifyTimeAsInstant()} for
+ * {@link Instant} views.
+ */
 public class Meta {
     private FormatVersion formatVersion;
     private ModelFormatId modelFormat;
@@ -16,7 +25,6 @@ public class Meta {
     private Boolean mimic;
     private Integer textureWidth;
     private Integer textureHeight;
-    private Integer unhandled;
     private Long creationTime;
     private Long modifyTime;
     private Boolean backup;
@@ -127,14 +135,6 @@ public class Meta {
 
     public void setTextureHeight(Integer textureHeight) {
         this.textureHeight = textureHeight;
-    }
-
-    public Integer getUnhandled() {
-        return unhandled;
-    }
-
-    public void setUnhandled(Integer unhandled) {
-        this.unhandled = unhandled;
     }
 
     public Long getCreationTime() {

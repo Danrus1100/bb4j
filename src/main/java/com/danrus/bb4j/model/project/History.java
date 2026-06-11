@@ -6,6 +6,7 @@ import java.util.Map;
 public class History {
     private List<HistoryEntry> history;
     private Integer historyIndex;
+    private Map<String, Object> extra;
 
     public History() {}
 
@@ -25,11 +26,20 @@ public class History {
         this.historyIndex = historyIndex;
     }
 
+    public Map<String, Object> getExtra() {
+        return extra;
+    }
+
+    public void setExtra(Map<String, Object> extra) {
+        this.extra = extra;
+    }
+
     public static class HistoryEntry {
         private Map<String, Object> before;
         private Map<String, Object> post;
         private String action;
         private Long time;
+        private Map<String, Object> extra;
 
         public HistoryEntry() {}
 
@@ -63,6 +73,14 @@ public class History {
 
         public void setTime(Long time) {
             this.time = time;
+        }
+
+        public Map<String, Object> getExtra() {
+            return extra;
+        }
+
+        public void setExtra(Map<String, Object> extra) {
+            this.extra = extra;
         }
     }
 }

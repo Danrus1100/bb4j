@@ -11,6 +11,7 @@ import java.util.List;
 
 public class Migrator {
     private static final List<MigrationStep> STEPS = new ArrayList<>();
+    private static final String LATEST_FORMAT_VERSION = "5.0";
 
     static {
         STEPS.add(new HeaderMigration());
@@ -47,6 +48,8 @@ public class Migrator {
                 step.migrate(document);
             }
         }
+
+        meta.setFormatVersion(LATEST_FORMAT_VERSION);
     }
 
     public static void migrateToLatest(BbModelDocument document) {

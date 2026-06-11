@@ -95,7 +95,7 @@ public class TextureUtils {
             }
 
             Texture byId = document.getTextures().stream()
-                .filter(t -> t.getId() != null && t.getId() == numericRef)
+                .filter(t -> t.getId() != null && t.getId().equals(String.valueOf(numericRef)))
                 .findFirst()
                 .orElse(null);
             if (byId != null) {

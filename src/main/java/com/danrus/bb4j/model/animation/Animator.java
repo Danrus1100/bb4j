@@ -4,6 +4,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * The timeline of {@link Keyframe}s that an {@link Animation} applies to a single
+ * target (a bone/group or element), identified by the target's UUID.
+ */
 public class Animator {
     private String uuid;
     private String name;

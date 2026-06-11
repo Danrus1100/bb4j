@@ -49,7 +49,7 @@ public class TransformUtils {
 
         Double length = animation.getLength();
         if (length != null && length > 0) {
-            if (animation.getLoop() != null && animation.getLoop() > 0) {
+            if (animation.isLooping()) {
                 time = time % length;
             } else {
                 time = Math.min(time, length);

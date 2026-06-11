@@ -8,6 +8,14 @@ import com.google.gson.JsonPrimitive;
 
 import java.util.Map;
 
+/**
+ * Null-safe helpers for reading values out of Gson {@link JsonObject}s.
+ *
+ * @deprecated Currently unused. The {@link com.danrus.bb4j.io.BbModelReader}
+ * performs its JSON traversal directly against Gson. Kept for now in case
+ * external consumers depend on it; may be removed in a future release.
+ */
+@Deprecated
 public class JsonUtil {
     
     public static JsonObject getAsJsonObject(JsonObject obj, String key) {

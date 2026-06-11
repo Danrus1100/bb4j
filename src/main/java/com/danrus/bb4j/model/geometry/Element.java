@@ -3,6 +3,19 @@ package com.danrus.bb4j.model.geometry;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Base type for a single piece of geometry in a model.
+ *
+ * <p>The concrete subtype is chosen from the JSON {@code type} field:
+ * {@link CubeElement} ({@code "cube"}) or {@link MeshElement} ({@code "mesh"}).
+ * This base class holds the fields common to both — identity, bounds
+ * ({@code from}/{@code to}), {@code origin}, rotation/translation/scale,
+ * shading/UV flags, and the per-direction {@link Face} map used by cubes.
+ *
+ * <p>Vector fields are boxed/nullable {@code Double[]} so an absent value is
+ * distinguishable from zero. Convenience accessors ({@link #getWidth()},
+ * {@link #getCenterX()}, …) compute derived box dimensions.
+ */
 public class Element {
     public static final String CUBE = "cube";
     public static final String MESH = "mesh";

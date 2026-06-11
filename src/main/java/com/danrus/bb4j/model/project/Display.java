@@ -37,6 +37,7 @@ public class Display {
         private Double[] rotation;
         private Double[] translation;
         private Double[] scale;
+        private Map<String, Object> extra;
 
         public DisplaySlot() {}
 
@@ -62,6 +63,14 @@ public class Display {
 
         public void setScale(Double[] scale) {
             this.scale = scale;
+        }
+
+        public Map<String, Object> getExtra() {
+            return extra;
+        }
+
+        public void setExtra(Map<String, Object> extra) {
+            this.extra = extra;
         }
     }
 }

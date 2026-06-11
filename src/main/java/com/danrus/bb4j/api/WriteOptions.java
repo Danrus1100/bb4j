@@ -1,10 +1,18 @@
 package com.danrus.bb4j.api;
 
+/**
+ * Options controlling how a {@link com.danrus.bb4j.model.BbModelDocument} is
+ * written.
+ *
+ * <p>Built fluently via {@link #builder()}; each setter returns {@code this}.
+ * Defaults: pretty-printed JSON output, {@link CompressionMode#AUTO} (which means
+ * uncompressed JSON on write), and editor state / undo history excluded.
+ *
+ */
 public class WriteOptions {
     private CompressionMode compressionMode = CompressionMode.AUTO;
     private boolean prettyPrint = true;
     private boolean includeEditorState = false;
-    private boolean embedTextures = false;
     private boolean includeHistory = false;
 
     private WriteOptions() {}
@@ -28,11 +36,6 @@ public class WriteOptions {
         return this;
     }
 
-    public WriteOptions embedTextures(boolean embedTextures) {
-        this.embedTextures = embedTextures;
-        return this;
-    }
-
     public WriteOptions includeHistory(boolean includeHistory) {
         this.includeHistory = includeHistory;
         return this;
@@ -48,10 +51,6 @@ public class WriteOptions {
 
     public boolean isIncludeEditorState() {
         return includeEditorState;
-    }
-
-    public boolean isEmbedTextures() {
-        return embedTextures;
     }
 
     public boolean isIncludeHistory() {

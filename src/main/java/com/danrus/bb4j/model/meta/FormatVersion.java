@@ -53,8 +53,10 @@ public class FormatVersion implements Comparable<FormatVersion> {
             if (thisPart < otherPart) return -1;
         }
 
-        if (this.beta != null && other.beta == null) return 1;
-        if (this.beta == null && other.beta != null) return -1;
+        // A beta build precedes its corresponding release (e.g. 5.0-beta.1 < 5.0),
+        // matching Blockbench's VersionUtil.compare.
+        if (this.beta != null && other.beta == null) return -1;
+        if (this.beta == null && other.beta != null) return 1;
         
         if (this.beta != null && other.beta != null) {
             maxLength = Math.max(this.beta.length, other.beta.length);

@@ -163,7 +163,7 @@ public class AnimationUtils {
     }
     
     public boolean isLooping(Animation animation) {
-        return animation != null && animation.getLoop() != null && animation.getLoop() == 1.0;
+        return animation != null && animation.isLooping();
     }
     
     public List<Animation> getLoopingAnimations() {
