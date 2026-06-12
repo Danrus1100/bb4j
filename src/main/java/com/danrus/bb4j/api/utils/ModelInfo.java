@@ -5,19 +5,31 @@ import com.danrus.bb4j.model.BbModelDocument;
 import java.util.*;
 
 public class ModelInfo {
-    
+
+    /** Blockbench's default texture resolution when a model declares none. */
+    private static final int DEFAULT_TEXTURE_SIZE = 16;
+
     private final BbModelDocument document;
     private final ElementUtils elementUtils;
     private final AnimationUtils animationUtils;
     private final TextureUtils textureUtils;
     private final OutlinerUtils outlinerUtils;
-    
+    /** Cached model bounding box (computed once); see {@link #bounds()}. */
+    private double[] bounds;
+
     private ModelInfo(BbModelDocument document) {
         this.document = document;
         this.elementUtils = ElementUtils.forDocument(document);
         this.animationUtils = AnimationUtils.forDocument(document);
         this.textureUtils = TextureUtils.forDocument(document);
         this.outlinerUtils = OutlinerUtils.forDocument(document);
+    }
+
+    private double[] bounds() {
+        if (bounds == null) {
+            bounds = elementUtils.getModelBounds();
+        }
+        return bounds;
     }
     
     public static ModelInfo fromDocument(BbModelDocument document) {
@@ -47,9 +59,9 @@ public class ModelInfo {
         if (document.getMeta() != null && document.getMeta().getTextureWidth() != null) {
             return document.getMeta().getTextureWidth();
         }
-        return 16;
+        return DEFAULT_TEXTURE_SIZE;
     }
-    
+
     public int getTextureHeight() {
         if (document.getResolution() != null && document.getResolution().getHeight() != null) {
             return document.getResolution().getHeight();
@@ -57,7 +69,7 @@ public class ModelInfo {
         if (document.getMeta() != null && document.getMeta().getTextureHeight() != null) {
             return document.getMeta().getTextureHeight();
         }
-        return 16;
+        return DEFAULT_TEXTURE_SIZE;
     }
     
     public int getElementCount() {
@@ -85,15 +97,15 @@ public class ModelInfo {
     }
     
     public double getModelWidth() {
-        return elementUtils.getModelWidth();
+        return bounds()[3] - bounds()[0];
     }
-    
+
     public double getModelHeight() {
-        return elementUtils.getModelHeight();
+        return bounds()[4] - bounds()[1];
     }
-    
+
     public double getModelDepth() {
-        return elementUtils.getModelDepth();
+        return bounds()[5] - bounds()[2];
     }
     
     public double getModelVolume() {
@@ -128,6 +140,16 @@ public class ModelInfo {
                document.getMeta().getModelFormat().isJava();
     }
     
+    /** Consistency findings for this model; see {@link ModelValidator}. */
+    public List<ModelValidator.Issue> validate() {
+        return ModelValidator.forDocument(document).validate();
+    }
+
+    /** Whether the model has no {@link ModelValidator.Severity#ERROR} issues. */
+    public boolean isValid() {
+        return ModelValidator.forDocument(document).isValid();
+    }
+
     public Map<String, Object> toSummaryMap() {
         Map<String, Object> summary = new LinkedHashMap<>();
         

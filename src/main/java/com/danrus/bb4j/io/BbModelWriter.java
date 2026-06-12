@@ -44,10 +44,21 @@ public class BbModelWriter {
     private static final String CURRENT_FORMAT_VERSION = "5.0";
 
     public static String write(BbModelDocument document, WriteOptions options) {
-        JsonObject root = serializeDocument(document, options);
-        
-        String json = options.isPrettyPrint() 
-            ? JSON_CODEC.toPrettyJson(root) 
+        // Encode any registered typed "extra" fields back to JsonElement so the
+        // ordinary serializer emits them; restore the typed values afterwards so
+        // writing does not mutate the caller's document. No-op without extensions.
+        com.danrus.bb4j.ext.ExtensionProcessor.Restore restore =
+                com.danrus.bb4j.ext.ExtensionProcessor.encode(
+                        document, options.getExtensions(), JSON_CODEC.gson());
+        JsonObject root;
+        try {
+            root = serializeDocument(document, options);
+        } finally {
+            restore.run();
+        }
+
+        String json = options.isPrettyPrint()
+            ? JSON_CODEC.toPrettyJson(root)
             : JSON_CODEC.toJson(root);
         
         CompressionMode actualMode = options.getCompressionMode();

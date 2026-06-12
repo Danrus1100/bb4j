@@ -2,38 +2,49 @@ package com.danrus.bb4j.api.utils;
 
 import com.danrus.bb4j.model.BbModelDocument;
 import com.danrus.bb4j.model.geometry.Element;
-import com.danrus.bb4j.model.outliner.OutlinerNode;
-import com.danrus.bb4j.model.outliner.OutlinerGroupNode;
+import com.danrus.bb4j.model.geometry.MeshElement;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class ElementUtils {
-    
+
     private final BbModelDocument document;
-    
+    /** Lazily built {@code uuid -> element} index; see {@link #getElementByUuid}. */
+    private Map<String, Element> elementIndex;
+
     private ElementUtils(BbModelDocument document) {
         this.document = document;
     }
-    
+
     public static ElementUtils forDocument(BbModelDocument document) {
         return new ElementUtils(document);
     }
-    
+
     public List<Element> getAllElements() {
-        return document.getElements() != null 
-            ? new ArrayList<>(document.getElements()) 
+        return document.getElements() != null
+            ? new ArrayList<>(document.getElements())
             : Collections.emptyList();
     }
-    
+
+    /**
+     * Looks up an element by uuid using a lazily built index. The index is cached
+     * on this instance, so obtain a fresh {@code ElementUtils} after adding or
+     * removing elements.
+     */
     public Element getElementByUuid(String uuid) {
         if (uuid == null || document.getElements() == null) {
             return null;
         }
-        return document.getElements().stream()
-            .filter(e -> uuid.equals(e.getUuid()))
-            .findFirst()
-            .orElse(null);
+        if (elementIndex == null) {
+            elementIndex = new HashMap<>();
+            for (Element e : document.getElements()) {
+                if (e.getUuid() != null) {
+                    elementIndex.putIfAbsent(e.getUuid(), e);
+                }
+            }
+        }
+        return elementIndex.get(uuid);
     }
     
     public Element getElementByName(String name) {
@@ -74,44 +85,21 @@ public class ElementUtils {
     }
     
     public List<Element> getElementsInGroup(String groupUuid) {
-        if (groupUuid == null || document.getOutliner() == null) {
+        if (groupUuid == null) {
             return Collections.emptyList();
         }
-        
-        List<String> elementUuids = new ArrayList<>();
-        findElementUuidsInGroup(document.getOutliner(), groupUuid, elementUuids);
-        
+        // The outliner already knows how to resolve a group's element references;
+        // reuse it rather than re-walking the tree here.
+        Set<String> elementUuids =
+            new HashSet<>(OutlinerUtils.forDocument(document).getElementUuidsInGroup(groupUuid));
+        if (elementUuids.isEmpty()) {
+            return Collections.emptyList();
+        }
         return getAllElements().stream()
             .filter(e -> elementUuids.contains(e.getUuid()))
             .collect(Collectors.toList());
     }
-    
-    private void findElementUuidsInGroup(List<OutlinerNode> nodes, String targetGroupUuid, List<String> elementUuids) {
-        if (nodes == null) return;
-        
-        for (OutlinerNode node : nodes) {
-            if (targetGroupUuid.equals(node.getUuid())) {
-                collectElementUuids(node, elementUuids);
-                return;
-            }
-            if (node.getChildren() != null) {
-                findElementUuidsInGroup(node.getChildren(), targetGroupUuid, elementUuids);
-            }
-        }
-    }
-    
-    private void collectElementUuids(OutlinerNode node, List<String> elementUuids) {
-        if (node instanceof OutlinerGroupNode) {
-            if (node.getChildren() != null) {
-                for (OutlinerNode child : node.getChildren()) {
-                    collectElementUuids(child, elementUuids);
-                }
-            }
-        } else if (node.getUuid() != null && (node.getChildren() == null || node.getChildren().isEmpty())) {
-            elementUuids.add(node.getUuid());
-        }
-    }
-    
+
     public Map<String, List<Element>> getElementsGroupedByType() {
         Map<String, List<Element>> result = new HashMap<>();
         result.put("cube", getCubes());
@@ -123,35 +111,90 @@ public class ElementUtils {
         return getAllElements().size();
     }
     
+    /**
+     * Sum of each element's axis-aligned bounding-box volume. Cubes use their
+     * {@code from}/{@code to} extents; meshes use the bounding box of their
+     * vertices (so mesh models are no longer counted as zero volume).
+     */
     public double getTotalVolume() {
-        return getAllElements().stream()
-            .mapToDouble(e -> e.getWidth() * e.getHeight() * e.getDepth())
-            .sum();
+        double total = 0;
+        for (Element element : getAllElements()) {
+            Bounds b = new Bounds();
+            accumulate(element, b);
+            total += b.volume();
+        }
+        return total;
     }
-    
+
+    /**
+     * Axis-aligned bounding box of the whole model as
+     * {@code [minX, minY, minZ, maxX, maxY, maxZ]}, or all zeros when there is no
+     * positioned geometry. Cube extents come from {@code from}/{@code to}; mesh
+     * extents come from each vertex offset by the element {@code origin}. Element
+     * rotation and {@code inflate} are not applied.
+     */
     public double[] getModelBounds() {
-        if (document.getElements() == null || document.getElements().isEmpty()) {
-            return new double[]{0, 0, 0, 0, 0, 0};
+        Bounds bounds = new Bounds();
+        for (Element element : getAllElements()) {
+            accumulate(element, bounds);
         }
-        
-        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
-        double maxX = Double.MIN_VALUE, maxY = Double.MIN_VALUE, maxZ = Double.MIN_VALUE;
-        
-        for (Element element : document.getElements()) {
-            Double[] from = element.getFrom();
-            Double[] to = element.getTo();
-            
-            if (from != null && to != null) {
-                minX = Math.min(minX, from[0]);
-                minY = Math.min(minY, from[1]);
-                minZ = Math.min(minZ, from[2]);
-                maxX = Math.max(maxX, to[0]);
-                maxY = Math.max(maxY, to[1]);
-                maxZ = Math.max(maxZ, to[2]);
+        return bounds.toArray();
+    }
+
+    /** Adds an element's corners (cube) or vertices (mesh) to {@code bounds}. */
+    private static void accumulate(Element element, Bounds bounds) {
+        if (element instanceof MeshElement mesh && mesh.getVertices() != null
+                && !mesh.getVertices().isEmpty()) {
+            Double[] origin = element.getOrigin();
+            double ox = component(origin, 0), oy = component(origin, 1), oz = component(origin, 2);
+            for (Double[] v : mesh.getVertices().values()) {
+                if (isPoint(v)) {
+                    bounds.include(ox + v[0], oy + v[1], oz + v[2]);
+                }
             }
+            return;
         }
-        
-        return new double[]{minX, minY, minZ, maxX, maxY, maxZ};
+        Double[] from = element.getFrom();
+        Double[] to = element.getTo();
+        if (isPoint(from) && isPoint(to)) {
+            bounds.include(from[0], from[1], from[2]);
+            bounds.include(to[0], to[1], to[2]);
+        }
+    }
+
+    private static boolean isPoint(Double[] v) {
+        return v != null && v.length >= 3 && v[0] != null && v[1] != null && v[2] != null
+                && Double.isFinite(v[0]) && Double.isFinite(v[1]) && Double.isFinite(v[2]);
+    }
+
+    private static double component(Double[] v, int i) {
+        return v != null && v.length > i && v[i] != null ? v[i] : 0.0;
+    }
+
+    /** Mutable axis-aligned bounding-box accumulator. */
+    private static final class Bounds {
+        private double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY, minZ = Double.POSITIVE_INFINITY;
+        private double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY, maxZ = Double.NEGATIVE_INFINITY;
+
+        void include(double x, double y, double z) {
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+            minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+
+        boolean isEmpty() {
+            return minX > maxX;
+        }
+
+        double volume() {
+            return isEmpty() ? 0 : (maxX - minX) * (maxY - minY) * (maxZ - minZ);
+        }
+
+        double[] toArray() {
+            return isEmpty()
+                ? new double[]{0, 0, 0, 0, 0, 0}
+                : new double[]{minX, minY, minZ, maxX, maxY, maxZ};
+        }
     }
     
     public double[] getModelCenter() {

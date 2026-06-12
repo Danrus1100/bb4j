@@ -14,6 +14,7 @@ public class WriteOptions {
     private boolean prettyPrint = true;
     private boolean includeEditorState = false;
     private boolean includeHistory = false;
+    private com.danrus.bb4j.ext.ParseExtensions extensions = com.danrus.bb4j.ext.ParseExtensions.EMPTY;
 
     private WriteOptions() {}
 
@@ -41,6 +42,17 @@ public class WriteOptions {
         return this;
     }
 
+    /**
+     * Registers a {@link com.danrus.bb4j.ext.ParseExtensions} registry that
+     * controls how selected typed "extra" fields are encoded back to JSON on
+     * write. Pass the same registry used for reading so decode/encode stay
+     * symmetric. Defaults to {@link com.danrus.bb4j.ext.ParseExtensions#EMPTY}.
+     */
+    public WriteOptions extensions(com.danrus.bb4j.ext.ParseExtensions extensions) {
+        this.extensions = extensions == null ? com.danrus.bb4j.ext.ParseExtensions.EMPTY : extensions;
+        return this;
+    }
+
     public CompressionMode getCompressionMode() {
         return compressionMode;
     }
@@ -55,5 +67,9 @@ public class WriteOptions {
 
     public boolean isIncludeHistory() {
         return includeHistory;
+    }
+
+    public com.danrus.bb4j.ext.ParseExtensions getExtensions() {
+        return extensions;
     }
 }

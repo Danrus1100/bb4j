@@ -3,18 +3,27 @@ package com.danrus.bb4j.api.utils;
 import com.danrus.bb4j.api.utils.AnimationUtils;
 import com.danrus.bb4j.model.BbModelDocument;
 import com.danrus.bb4j.model.animation.*;
-import com.danrus.bb4j.model.outliner.OutlinerNode;
+import com.danrus.bb4j.model.geometry.Element;
 import com.danrus.bb4j.model.outliner.OutlinerGroupNode;
 import com.danrus.bb4j.molang.MolangEvaluator;
 
 import java.util.*;
 
 public class TransformUtils {
-    
+
     private final BbModelDocument document;
     private final AnimationUtils animationUtils;
     private MolangEvaluator molangEvaluator;
-    
+
+    // Lazily built uuid indexes that replace the linear scans in
+    // getStaticTransform / find*ByUuid with O(1) lookups. getStaticTransform is
+    // called once per outliner node during rendering, so these turn the previous
+    // O(n^2) behaviour into O(n). They assume the document is not mutated after
+    // this TransformUtils was created.
+    private Map<String, Element> elementIndex;
+    private Map<String, BbModelDocument.Group> documentGroupIndex;
+    private Map<String, OutlinerGroupNode> outlinerGroupIndex;
+
     private TransformUtils(BbModelDocument document) {
         this.document = document;
         this.animationUtils = AnimationUtils.forDocument(document);
@@ -540,37 +549,34 @@ public class TransformUtils {
     
     public Transform getStaticTransform(String targetUuid) {
         Transform transform = new Transform();
-        
-        if (document.getElements() != null) {
-            for (var element : document.getElements()) {
-                if (targetUuid.equals(element.getUuid())) {
-                    Double[] from = element.getFrom();
-                    Double[] to = element.getTo();
-                    if (from != null && to != null && from.length >= 3 && to.length >= 3) {
-                        transform.setX((from[0] + to[0]) / 2);
-                        transform.setY((from[1] + to[1]) / 2);
-                        transform.setZ((from[2] + to[2]) / 2);
-                    }
-                    
-                    Double[] rotation = element.getRotation();
-                    if (rotation != null && rotation.length >= 3) {
-                        transform.setRotX((double) rotation[0]);
-                        transform.setRotY((double) rotation[1]);
-                        transform.setRotZ((double) rotation[2]);
-                    }
-                    
-                    Double[] scale = element.getScale();
-                    if (scale != null && scale.length >= 3) {
-                        transform.setScaleX(scale[0]);
-                        transform.setScaleY(scale[1]);
-                        transform.setScaleZ(scale[2]);
-                    }
-                    
-                    return transform;
-                }
+
+        Element element = elementByUuid(targetUuid);
+        if (element != null) {
+            Double[] from = element.getFrom();
+            Double[] to = element.getTo();
+            if (from != null && to != null && from.length >= 3 && to.length >= 3) {
+                transform.setX((from[0] + to[0]) / 2);
+                transform.setY((from[1] + to[1]) / 2);
+                transform.setZ((from[2] + to[2]) / 2);
             }
+
+            Double[] rotation = element.getRotation();
+            if (rotation != null && rotation.length >= 3) {
+                transform.setRotX((double) rotation[0]);
+                transform.setRotY((double) rotation[1]);
+                transform.setRotZ((double) rotation[2]);
+            }
+
+            Double[] scale = element.getScale();
+            if (scale != null && scale.length >= 3) {
+                transform.setScaleX(scale[0]);
+                transform.setScaleY(scale[1]);
+                transform.setScaleZ(scale[2]);
+            }
+
+            return transform;
         }
-        
+
         OutlinerGroupNode group = findGroupByUuid(targetUuid);
         BbModelDocument.Group documentGroup = findDocumentGroupByUuid(targetUuid);
         if (group != null || documentGroup != null) {
@@ -598,38 +604,49 @@ public class TransformUtils {
         return transform;
     }
 
+    private Element elementByUuid(String uuid) {
+        if (uuid == null || document.getElements() == null) {
+            return null;
+        }
+        if (elementIndex == null) {
+            elementIndex = new HashMap<>();
+            for (Element e : document.getElements()) {
+                if (e.getUuid() != null) {
+                    elementIndex.putIfAbsent(e.getUuid(), e);
+                }
+            }
+        }
+        return elementIndex.get(uuid);
+    }
+
     private BbModelDocument.Group findDocumentGroupByUuid(String uuid) {
         if (uuid == null || document.getGroups() == null) {
             return null;
         }
-        for (BbModelDocument.Group group : document.getGroups()) {
-            if (uuid.equals(group.getUuid())) {
-                return group;
+        if (documentGroupIndex == null) {
+            documentGroupIndex = new HashMap<>();
+            for (BbModelDocument.Group group : document.getGroups()) {
+                if (group.getUuid() != null) {
+                    documentGroupIndex.putIfAbsent(group.getUuid(), group);
+                }
             }
         }
-        return null;
+        return documentGroupIndex.get(uuid);
     }
-    
+
     private OutlinerGroupNode findGroupByUuid(String uuid) {
         if (uuid == null || document.getOutliner() == null) {
             return null;
         }
-        return findGroupByUuid(document.getOutliner(), uuid);
-    }
-    
-    private OutlinerGroupNode findGroupByUuid(List<OutlinerNode> nodes, String uuid) {
-        if (nodes == null) return null;
-        
-        for (OutlinerNode node : nodes) {
-            if (uuid.equals(node.getUuid()) && node instanceof OutlinerGroupNode) {
-                return (OutlinerGroupNode) node;
-            }
-            if (node.getChildren() != null) {
-                OutlinerGroupNode found = findGroupByUuid(node.getChildren(), uuid);
-                if (found != null) return found;
-            }
+        if (outlinerGroupIndex == null) {
+            outlinerGroupIndex = new HashMap<>();
+            OutlinerWalk.preOrder(document.getOutliner(), node -> {
+                if (node instanceof OutlinerGroupNode group && group.getUuid() != null) {
+                    outlinerGroupIndex.putIfAbsent(group.getUuid(), group);
+                }
+            });
         }
-        return null;
+        return outlinerGroupIndex.get(uuid);
     }
     
     public static class Transform {

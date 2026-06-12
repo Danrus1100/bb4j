@@ -4,6 +4,7 @@ import com.danrus.bb4j.api.BbException;
 import com.danrus.bb4j.api.CompressionMode;
 import com.danrus.bb4j.api.ReadOptions;
 import com.danrus.bb4j.api.VersionPolicy;
+import com.danrus.bb4j.ext.ExtensionProcessor;
 import com.danrus.bb4j.migrate.Migrator;
 import com.danrus.bb4j.model.BbModelDocument;
 import com.danrus.bb4j.model.animation.*;
@@ -60,11 +61,18 @@ public class BbModelReader {
         JsonObject root = parsed.getAsJsonObject();
 
         BbModelDocument document = parseDocument(root, options);
-        
+
+        if (options.isPreserveExtraFields()) {
+            // Translate any registered "extra" fields from raw JsonElement into
+            // their codec-defined typed form (no-op when no extensions registered).
+            ExtensionProcessor.decode(
+                    document, options.getExtensions(), JSON_CODEC.gson());
+        }
+
         if (options.getVersionPolicy() != VersionPolicy.IGNORE) {
             Migrator.migrateIfNeeded(document, options.getVersionPolicy());
         }
-        
+
         return document;
     }
 

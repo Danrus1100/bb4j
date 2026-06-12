@@ -9,51 +9,55 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class OutlinerUtils {
-    
+
     private final BbModelDocument document;
-    
+    /** Lazily built {@code uuid -> group} index; see {@link #getGroupByUuid}. */
+    private Map<String, OutlinerGroupNode> groupIndex;
+
     private OutlinerUtils(BbModelDocument document) {
         this.document = document;
     }
-    
+
     public static OutlinerUtils forDocument(BbModelDocument document) {
         return new OutlinerUtils(document);
     }
-    
+
     public List<OutlinerNode> getRootNodes() {
-        return document.getOutliner() != null 
-            ? new ArrayList<>(document.getOutliner()) 
+        return document.getOutliner() != null
+            ? new ArrayList<>(document.getOutliner())
             : Collections.emptyList();
     }
-    
+
     public List<OutlinerGroupNode> getAllGroups() {
         List<OutlinerGroupNode> groups = new ArrayList<>();
-        if (document.getOutliner() != null) {
-            collectGroups(document.getOutliner(), groups);
-        }
+        OutlinerWalk.preOrder(document.getOutliner(), node -> {
+            if (node instanceof OutlinerGroupNode group) {
+                groups.add(group);
+            }
+        });
         return groups;
     }
-    
-    private void collectGroups(List<OutlinerNode> nodes, List<OutlinerGroupNode> groups) {
-        if (nodes == null) return;
-        
-        for (OutlinerNode node : nodes) {
-            if (node instanceof OutlinerGroupNode) {
-                groups.add((OutlinerGroupNode) node);
-                if (node.getChildren() != null) {
-                    collectGroups(node.getChildren(), groups);
-                }
-            }
-        }
-    }
-    
+
+    /**
+     * Looks up a group by uuid using a lazily built index. The index is cached on
+     * this instance, so obtain a fresh {@code OutlinerUtils} after mutating the
+     * outliner tree.
+     */
     public OutlinerGroupNode getGroupByUuid(String uuid) {
         if (uuid == null || document.getOutliner() == null) {
             return null;
         }
-        return findGroupByUuid(document.getOutliner(), uuid);
+        if (groupIndex == null) {
+            groupIndex = new HashMap<>();
+            for (OutlinerGroupNode group : getAllGroups()) {
+                if (group.getUuid() != null) {
+                    groupIndex.putIfAbsent(group.getUuid(), group);
+                }
+            }
+        }
+        return groupIndex.get(uuid);
     }
-    
+
     public OutlinerGroupNode getGroupByName(String name) {
         if (name == null) {
             return null;
@@ -63,83 +67,36 @@ public class OutlinerUtils {
             .findFirst()
             .orElse(null);
     }
-    
-    private OutlinerGroupNode findGroupByUuid(List<OutlinerNode> nodes, String uuid) {
-        if (nodes == null) return null;
-        
-        for (OutlinerNode node : nodes) {
-            if (uuid.equals(node.getUuid()) && node instanceof OutlinerGroupNode) {
-                return (OutlinerGroupNode) node;
-            }
-            if (node.getChildren() != null) {
-                OutlinerGroupNode found = findGroupByUuid(node.getChildren(), uuid);
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
-    
+
     public List<OutlinerNode> getAllDescendants(OutlinerGroupNode group) {
         List<OutlinerNode> result = new ArrayList<>();
-        if (group != null && group.getChildren() != null) {
-            collectDescendants(group.getChildren(), result);
+        if (group != null) {
+            OutlinerWalk.preOrder(group.getChildren(), result::add);
         }
         return result;
     }
-    
-    private void collectDescendants(List<OutlinerNode> nodes, List<OutlinerNode> result) {
-        if (nodes == null) return;
-        
-        for (OutlinerNode node : nodes) {
-            result.add(node);
-            if (node.getChildren() != null) {
-                collectDescendants(node.getChildren(), result);
-            }
-        }
-    }
-    
+
     public List<OutlinerElementRefNode> getAllElementRefs() {
         List<OutlinerElementRefNode> refs = new ArrayList<>();
-        if (document.getOutliner() != null) {
-            collectElementRefs(document.getOutliner(), refs);
-        }
+        OutlinerWalk.preOrder(document.getOutliner(), node -> {
+            if (node instanceof OutlinerElementRefNode ref) {
+                refs.add(ref);
+            }
+        });
         return refs;
     }
-    
-    private void collectElementRefs(List<OutlinerNode> nodes, List<OutlinerElementRefNode> refs) {
-        if (nodes == null) return;
-        
-        for (OutlinerNode node : nodes) {
-            if (node instanceof OutlinerElementRefNode) {
-                refs.add((OutlinerElementRefNode) node);
-            }
-            if (node.getChildren() != null) {
-                collectElementRefs(node.getChildren(), refs);
-            }
-        }
-    }
-    
+
     public List<String> getElementUuidsInGroup(String groupUuid) {
         OutlinerGroupNode group = getGroupByUuid(groupUuid);
         if (group == null) return Collections.emptyList();
-        
+
         List<String> uuids = new ArrayList<>();
-        collectElementUuids(group.getChildren(), uuids);
+        OutlinerWalk.preOrder(group.getChildren(), node -> {
+            if (node instanceof OutlinerElementRefNode ref && ref.getElementUuid() != null) {
+                uuids.add(ref.getElementUuid());
+            }
+        });
         return uuids;
-    }
-    
-    private void collectElementUuids(List<OutlinerNode> nodes, List<String> uuids) {
-        if (nodes == null) return;
-        
-        for (OutlinerNode node : nodes) {
-            if (node instanceof OutlinerElementRefNode) {
-                String uuid = ((OutlinerElementRefNode) node).getElementUuid();
-                if (uuid != null) uuids.add(uuid);
-            }
-            if (node.getChildren() != null) {
-                collectElementUuids(node.getChildren(), uuids);
-            }
-        }
     }
     
     public Map<String, List<String>> getGroupHierarchy() {

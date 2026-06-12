@@ -44,7 +44,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.danrus:bb4j:1.2")
+    implementation("com.danrus:bb4j:1.3")
 }
 ```
 
@@ -61,7 +61,7 @@ dependencies {
 <dependency>
     <groupId>com.danrus</groupId>
     <artifactId>bb4j</artifactId>
-    <version>1.2</version>
+    <version>1.3</version>
 </dependency>
 ```
 

@@ -33,7 +33,7 @@ publishing {
 
             groupId = "com.danrus"
             artifactId = "bb4j"
-            version = "1.2"
+            version = "1.3"
         }
     }
 

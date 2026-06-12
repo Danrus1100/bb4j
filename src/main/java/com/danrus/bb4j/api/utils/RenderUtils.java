@@ -13,7 +13,7 @@ import com.danrus.bb4j.api.utils.TransformUtils.Transform;
 import java.util.*;
 
 public class RenderUtils {
-    
+
     private final BbModelDocument document;
     private final TransformUtils transformUtils;
     private final AnimationUtils animationUtils;
@@ -21,7 +21,22 @@ public class RenderUtils {
     private final OutlinerUtils outlinerUtils;
     private final double textureWidth;
     private final double textureHeight;
-    
+
+    // Lazily built indexes/caches that replace the per-node O(n) scans in the
+    // outliner traversal with O(1) lookups. Static transforms and texture sizes
+    // are time-independent, so caching them across animation frames is safe; all
+    // assume the document is not mutated after this RenderUtils was created.
+    private Map<String, Element> elementIndex;
+    private Map<String, double[]> groupOriginIndex;
+    private final Map<String, Transform> staticTransformCache = new HashMap<>();
+    private final Map<String, double[]> textureSizeCache = new HashMap<>();
+
+    public BbModelDocument getModel() { return document; }
+    public TransformUtils getTransforms() { return transformUtils; }
+    public AnimationUtils getAnimations() { return animationUtils; }
+    public TextureUtils getTextures() { return textureUtils; }
+    public OutlinerUtils getOutliners() { return outlinerUtils; }
+
     private RenderUtils(BbModelDocument document) {
         this.document = document;
         this.transformUtils = TransformUtils.forDocument(document);
@@ -114,24 +129,13 @@ public class RenderUtils {
             if (node instanceof OutlinerGroupNode) {
                 OutlinerGroupNode group = (OutlinerGroupNode) node;
 
-                double[] groupOrigin = parentOrigin;
-                if (document.getGroups() != null) {
-                    for (com.danrus.bb4j.model.BbModelDocument.Group g : document.getGroups()) {
-                        if (g.getUuid().equals(group.getUuid())) {
-                            Double[] originObj = g.getOrigin();
-                            if (originObj != null && originObj.length >= 3) {
-                                groupOrigin = new double[]{originObj[0], originObj[1], originObj[2]};
-                            }
-                            break;
-                        }
-                    }
-                }
+                double[] groupOrigin = groupOrigin(group.getUuid(), parentOrigin);
 
                 double[] staticPos = new double[]{0,0,0};
                 double[] staticRot = new double[]{0,0,0};
                 double[] staticScale = new double[]{1,1,1};
 
-                Transform staticTransform = transformUtils.getStaticTransform(group.getUuid());
+                Transform staticTransform = staticTransform(group.getUuid());
                 if (staticTransform != null) {
                     staticPos[0] = staticTransform.getX();
                     staticPos[1] = staticTransform.getY();
@@ -163,7 +167,7 @@ public class RenderUtils {
                     double[] staticRot = new double[]{0,0,0};
                     double[] staticScale = new double[]{1,1,1};
                     
-                    Transform staticTransform = transformUtils.getStaticTransform(element.getUuid());
+                    Transform staticTransform = staticTransform(element.getUuid());
                     if (staticTransform != null) {
                         // Elements do not have a static translation that offsets their absolute bounds,
                         // their geometry is already absolutely positioned.
@@ -196,11 +200,54 @@ public class RenderUtils {
     }
     
     private Element findElementByUuid(String uuid) {
-        if (document.getElements() == null) return null;
-        return document.getElements().stream()
-            .filter(e -> uuid.equals(e.getUuid()))
-            .findFirst()
-            .orElse(null);
+        if (uuid == null || document.getElements() == null) return null;
+        if (elementIndex == null) {
+            elementIndex = new HashMap<>();
+            for (Element e : document.getElements()) {
+                if (e.getUuid() != null) {
+                    elementIndex.putIfAbsent(e.getUuid(), e);
+                }
+            }
+        }
+        return elementIndex.get(uuid);
+    }
+
+    /** Origin of a document group by uuid (O(1) after the first call), or {@code fallback}. */
+    private double[] groupOrigin(String uuid, double[] fallback) {
+        if (groupOriginIndex == null) {
+            groupOriginIndex = new HashMap<>();
+            if (document.getGroups() != null) {
+                for (com.danrus.bb4j.model.BbModelDocument.Group g : document.getGroups()) {
+                    Double[] o = g.getOrigin();
+                    if (g.getUuid() != null && o != null && o.length >= 3) {
+                        groupOriginIndex.putIfAbsent(g.getUuid(), new double[]{o[0], o[1], o[2]});
+                    }
+                }
+            }
+        }
+        double[] origin = groupOriginIndex.get(uuid);
+        // Clone so a caller mutating a mesh's localOrigin cannot corrupt the cache.
+        return origin != null ? origin.clone() : fallback;
+    }
+
+    /** Memoizes the time-independent static transform for a uuid (reused across frames). */
+    private Transform staticTransform(String uuid) {
+        return staticTransformCache.computeIfAbsent(uuid, transformUtils::getStaticTransform);
+    }
+
+    /** Resolved {@code [width, height]} of a face's texture reference, cached per reference. */
+    private double[] textureSize(String reference) {
+        return textureSizeCache.computeIfAbsent(reference == null ? "" : reference, ref -> {
+            double tw = this.textureWidth;
+            double th = this.textureHeight;
+            com.danrus.bb4j.model.texture.Texture tex =
+                textureUtils.getTextureByReference(ref.isEmpty() ? null : ref);
+            if (tex != null && tex.getWidth() != null && tex.getHeight() != null) {
+                tw = tex.getWidth();
+                th = tex.getHeight();
+            }
+            return new double[]{tw, th};
+        });
     }
     
     private RenderableMesh createMesh(Element element, double[] position, double[] rotation, double[] scale, double[] groupOrigin) {
@@ -369,27 +416,17 @@ public class RenderUtils {
         if (uv == null || uv.length < 2) {
             return new double[]{0, 0};
         }
-        double tw = this.textureWidth;
-        double th = this.textureHeight;
-        com.danrus.bb4j.model.texture.Texture tex = textureUtils.getTextureByReference(faceData.getTexture());
-        if (tex != null && tex.getWidth() != null && tex.getHeight() != null) {
-            tw = tex.getWidth();
-            th = tex.getHeight();
-        }
-        return new double[]{uv[0] / tw, uv[1] / th};
+        double[] ts = textureSize(faceData.getTexture());
+        return new double[]{uv[0] / ts[0], uv[1] / ts[1]};
     }
     
     private RenderableFace createFace(String faceName, Face face, double[] from, double[] to, double[] center) {
         if (face.getUv() == null) return null;
-        
-        double tw = this.textureWidth;
-        double th = this.textureHeight;
-        com.danrus.bb4j.model.texture.Texture tex = textureUtils.getTextureByReference(face.getTexture());
-        if (tex != null && tex.getWidth() != null && tex.getHeight() != null) {
-            tw = tex.getWidth();
-            th = tex.getHeight();
-        }
-        
+
+        double[] ts = textureSize(face.getTexture());
+        double tw = ts[0];
+        double th = ts[1];
+
         RenderableFace rf = new RenderableFace();
         rf.setName(faceName);
         double[] originalUv = face.getUv().getUv();

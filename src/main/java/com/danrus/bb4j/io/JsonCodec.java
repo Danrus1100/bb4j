@@ -23,6 +23,15 @@ public class JsonCodec {
                 .create();
     }
 
+    /**
+     * The underlying {@link Gson} instance, exposed so extension
+     * {@link com.danrus.bb4j.ext.RawFieldCodec}s can (de)serialize nested
+     * structures with the same configuration the library uses.
+     */
+    public Gson gson() {
+        return gson;
+    }
+
     public <T> T fromJson(String json, Class<T> classOfT) {
         try {
             return gson.fromJson(json, classOfT);
