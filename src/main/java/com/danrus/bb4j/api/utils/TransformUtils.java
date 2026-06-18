@@ -151,7 +151,12 @@ public class TransformUtils {
             Keyframe afterPlus = (beforeIndex + 2) < keyframes.size() ? keyframes.get(beforeIndex + 2) : null;
             return interpolateKeyframeDataAdvanced(beforePlus, before, after, afterPlus, t, interp.getValue());
         }
-        
+
+        // Pluggable easing (e.g. GeckoLib easeInOutQuad/easeOutBounce) remaps the
+        // linear fraction; no-op unless a function is registered (see EasingRegistry).
+        // Easing lives on the keyframe we interpolate TO (it shapes the incoming
+        // segment): the first keyframe carries none, each later one eases its approach.
+        t = com.danrus.bb4j.ext.EasingRegistry.remap(after, t);
         return interpolateKeyframeData(before, after, t);
     }
     
@@ -348,7 +353,7 @@ public class TransformUtils {
                 Double v1 = evaluateMolangOrNumber(dpBefore.getX());
                 Double v2 = dpAfter != null && dpAfter.getX() != null ? evaluateMolangOrNumber(dpAfter.getX()) : v1;
                 if (v1 != null && v2 != null) {
-                    interpolated.setX(String.valueOf(isRotation ? lerpAngle(v1, v2, t) : lerp(v1, v2, t)));
+                    interpolated.setX(String.valueOf(isRotation ? lerpRotation(v1, v2, t) : lerp(v1, v2, t)));
                 } else if (v1 != null) {
                     interpolated.setX(String.valueOf(v1));
                 }
@@ -357,7 +362,7 @@ public class TransformUtils {
                 Double v1 = evaluateMolangOrNumber(dpBefore.getY());
                 Double v2 = dpAfter != null && dpAfter.getY() != null ? evaluateMolangOrNumber(dpAfter.getY()) : v1;
                 if (v1 != null && v2 != null) {
-                    interpolated.setY(String.valueOf(isRotation ? lerpAngle(v1, v2, t) : lerp(v1, v2, t)));
+                    interpolated.setY(String.valueOf(isRotation ? lerpRotation(v1, v2, t) : lerp(v1, v2, t)));
                 } else if (v1 != null) {
                     interpolated.setY(String.valueOf(v1));
                 }
@@ -366,7 +371,7 @@ public class TransformUtils {
                 Double v1 = evaluateMolangOrNumber(dpBefore.getZ());
                 Double v2 = dpAfter != null && dpAfter.getZ() != null ? evaluateMolangOrNumber(dpAfter.getZ()) : v1;
                 if (v1 != null && v2 != null) {
-                    interpolated.setZ(String.valueOf(isRotation ? lerpAngle(v1, v2, t) : lerp(v1, v2, t)));
+                    interpolated.setZ(String.valueOf(isRotation ? lerpRotation(v1, v2, t) : lerp(v1, v2, t)));
                 } else if (v1 != null) {
                     interpolated.setZ(String.valueOf(v1));
                 }
@@ -395,6 +400,17 @@ public class TransformUtils {
         while (diff > 180) diff -= 360;
         while (diff < -180) diff += 360;
         return from + diff * t;
+    }
+
+    /**
+     * Interpolates a rotation axis, deferring to a registered
+     * {@link com.danrus.bb4j.ext.RotationInterpolationRegistry} interpolator (e.g. a
+     * Blockbench-faithful plain-linear one) when present; otherwise uses bb4j's
+     * built-in shortest-path {@link #lerpAngle}.
+     */
+    private double lerpRotation(double from, double to, double t) {
+        var interp = com.danrus.bb4j.ext.RotationInterpolationRegistry.get();
+        return interp != null ? interp.interpolate(from, to, t) : lerpAngle(from, to, t);
     }
     
     private Double evaluateMolangOrNumber(String value) {
