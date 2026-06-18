@@ -44,7 +44,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.danrus:bb4j:1.3")
+    implementation("com.danrus:bb4j:1.3.1")
 }
 ```
 
