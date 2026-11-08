@@ -39,25 +39,15 @@ publishing {
 
     repositories {
         maven {
-            name = "Shlakoblock"
-            url = uri("https://maven.shlakoblock.com/releases")
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/danrus1100/bb4j")
 
             credentials {
-                username = project.findProperty("shlakoblock-maven-username")?.toString()
-                password = project.findProperty("shlakoblock-maven-password")?.toString()
+                username = project.findProperty("gpr.user")?.toString()
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key")?.toString()
+                    ?: System.getenv("GITHUB_TOKEN")
             }
         }
-
-        maven {
-            name = "ShlakoblockSnapshot"
-            url = uri("https://maven.shlakoblock.com/snapshots")
-
-            credentials {
-                username = project.findProperty("shlakoblock-maven-username")?.toString()
-                password = project.findProperty("shlakoblock-maven-password")?.toString()
-            }
-        }
-
-        mavenLocal()
     }
 }

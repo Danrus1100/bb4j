@@ -29,7 +29,7 @@ does not throw your data away.
 ## Requirements
 
 - Java 17+
-- Single runtime dependency: [Gson](https://github.com/google/gson)
+- [Gson](https://github.com/google/gson)
 
 ## Installation
 
@@ -40,7 +40,15 @@ The artifact is published as `com.danrus:bb4j`.
 ```kotlin
 repositories {
     mavenCentral()
-    maven("https://maven.shlakoblock.com/releases")
+    maven {
+        url = uri("https://maven.pkg.github.com/danrus1100/bb4j")
+        credentials {
+            username = project.findProperty("gpr.user")?.toString()
+                ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.key")?.toString()
+                ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
 }
 
 dependencies {
@@ -53,17 +61,33 @@ dependencies {
 ```xml
 <repositories>
     <repository>
-        <id>shlakoblock</id>
-        <url>https://maven.shlakoblock.com/releases</url>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/danrus1100/bb4j</url>
     </repository>
 </repositories>
 
 <dependency>
     <groupId>com.danrus</groupId>
     <artifactId>bb4j</artifactId>
-    <version>1.3</version>
+    <version>1.3.1</version>
 </dependency>
 ```
+
+> **Authentication.** GitHub Packages requires credentials even for public
+> packages. Create a personal access token (classic) with the `read:packages`
+> scope and either put `gpr.user` / `gpr.key` into `~/.gradle/gradle.properties`
+> (or use `GITHUB_ACTOR` / `GITHUB_TOKEN` in GitHub Actions), or, for Maven,
+> declare the token in `~/.m2/settings.xml` under the `github` server id:
+>
+> ```xml
+> <servers>
+>     <server>
+>         <id>github</id>
+>         <username>YOUR_GITHUB_USERNAME</username>
+>         <password>YOUR_PERSONAL_ACCESS_TOKEN</password>
+>     </server>
+> </servers>
+> ```
 
 ## Quick start
 
@@ -191,4 +215,4 @@ exception) carrying a short, stable error code such as `PARSE_ERROR`,
 
 ## License
 
-See [License.md](License.md).
+See [License.md](LICENSE).
