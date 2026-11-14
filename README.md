@@ -1,12 +1,9 @@
 # bb4j — Blockbench model library for Java
 
-A small, dependency-light Java library for reading, writing, migrating and
+A small Java library for reading, writing, migrating and
 inspecting Blockbench [`.bbmodel`](https://www.blockbench.net/) project files.
 
-It parses a `.bbmodel` into a strongly-typed document model, lets you query and
-modify it, and writes it back — with a strong focus on **lossless round-tripping**:
-unknown and future fields are preserved, so reading a file and writing it back
-does not throw your data away.
+It parses a `.bbmodel` into a strongly-typed document model, lets you query and modify it, and writes it back.
 
 ## Features
 
@@ -215,4 +212,4 @@ exception) carrying a short, stable error code such as `PARSE_ERROR`,
 
 ## License
 
-See [License.md](LICENSE).
+See [License](LICENSE).
